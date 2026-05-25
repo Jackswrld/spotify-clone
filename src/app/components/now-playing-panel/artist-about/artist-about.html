@@ -1,0 +1,20 @@
+<section class="artist-section">
+  <h3>{{ heading }}</h3>
+
+  <div class="artist-card">
+    <img class="artist-image" [src]="artist.imageUrl" [alt]="artist.name" />
+    <div class="artist-details">
+      <div class="artist-name-row">
+        <h4>{{ artist.name }}</h4>
+        <i *ngIf="artist.isVerified" class="fa-solid fa-circle-check" [attr.aria-label]="verifiedLabel"></i>
+      </div>
+
+      <div class="artist-actions">
+        <p>{{ artist.monthlyListeners }}</p>
+        <button type="button" [class.following]="artist.isFollowing">{{ followLabel }}</button>
+      </div>
+
+      <span class="latest-release">{{ artist.latestRelease }}</span>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,67 @@
+.track-info {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.album-art {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #282828;
+}
+
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title-copy {
+  min-width: 0;
+
+  h2 {
+    color: #fff;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.15;
+    margin: 0 0 4px;
+    overflow-wrap: anywhere;
+  }
+
+  p {
+    color: #b3b3b3;
+    font-size: 14px;
+    margin: 0;
+  }
+}
+
+.track-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.icon-button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #b3b3b3;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: color 0.2s, background-color 0.2s;
+
+  &:hover {
+    color: #fff;
+    background: #282828;
+  }
+
+  &.is-saved {
+    color: #1db954;
+  }
+}

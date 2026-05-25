@@ -1,0 +1,85 @@
+.artist-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  h3 {
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0;
+  }
+}
+
+.artist-card {
+  overflow: hidden;
+  border-radius: 8px;
+  background: #181818;
+}
+
+.artist-image {
+  width: 100%;
+  height: 172px;
+  object-fit: cover;
+  display: block;
+}
+
+.artist-details {
+  padding: 14px;
+}
+
+.artist-name-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  h4 {
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  i {
+    color: #1db954;
+    font-size: 14px;
+  }
+}
+
+.artist-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 14px;
+
+  p {
+    color: #b3b3b3;
+    font-size: 12px;
+    margin: 0;
+  }
+
+  button {
+    min-width: 74px;
+    height: 32px;
+    border: 1px solid #fff;
+    border-radius: 999px;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .following {
+    border-color: #1db954;
+    color: #1db954;
+  }
+}
+
+.latest-release {
+  color: #b3b3b3;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+}

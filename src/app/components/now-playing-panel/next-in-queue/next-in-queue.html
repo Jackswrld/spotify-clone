@@ -1,0 +1,24 @@
+<section class="queue-section">
+  <div class="section-header">
+    <h3>{{ heading }}</h3>
+    <button type="button">{{ openQueueLabel }}</button>
+  </div>
+
+  <article class="queue-item">
+    <div class="thumb-wrap">
+      <img [src]="item.thumbnailUrl" [alt]="item.title" />
+      <span *ngIf="item.isDownloaded" class="download-badge" [attr.aria-label]="downloadedLabel">
+        <i class="fa-solid fa-circle-down"></i>
+      </span>
+    </div>
+
+    <div class="queue-copy">
+      <h4>{{ item.title }}</h4>
+      <p>
+        <i class="fa-solid fa-video"></i>
+        <span>{{ typeLabels[item.type] }}</span>
+        <span>{{ item.artist }}</span>
+      </p>
+    </div>
+  </article>
+</section>

@@ -1,1 +1,18 @@
-<router-outlet />
+<div class="app-root">
+  <app-navbar></app-navbar>
+  <div class="app-body">
+    <app-library></app-library>
+    <main class="main-view" [class.panel-open]="isPanelOpen$ | async">
+      <router-outlet></router-outlet>
+    </main>
+    <button
+      *ngIf="(isPanelOpen$ | async) === false"
+      class="open-now-playing"
+      type="button"
+      [attr.aria-label]="openNowPlayingLabel"
+      (click)="openNowPlayingPanel()">
+      <i class="fa-solid fa-chevron-left"></i>
+    </button>
+    <app-now-playing-panel></app-now-playing-panel>
+  </div>
+</div>

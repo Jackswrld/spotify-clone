@@ -1,194 +1,554 @@
-.top-bar {
+.home-container {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-  background: #000;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100%;
+  background-color: #121212;
   color: #fff;
+}
+
+// ============================================================================
+// SECTION 1: Sticky Top Bar (Filter Pills + Nav Arrows)
+// ============================================================================
+.sticky-header {
   position: sticky;
   top: 0;
   z-index: 10;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.left-section {
+  background-color: #121212;
+  padding: 16px 24px;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 0.35rem;
-}
+  border-bottom: 1px solid #2a2a2a;
 
-.menu-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.menu-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.nav-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.nav-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.nav-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.home-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  font-size: 1.5rem;
-}
-
-.home-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.center-section {
-  flex: 1;
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  justify-content: center;
-  padding: 0 0.5rem;
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  max-width: 520px;
-  padding: 0.75rem 0.75rem;
-  background: black;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-}
-
-.search-box:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.search-icon {
-  color: #b3b3b3;
-  font-size: 1.2rem;
-}
-.search-icon :hover {
-  background: #fff;
-}
-.search-box input {
-  width: 100%;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #fff;
-  font-size: 1rem;
-}
-
-.search-box input::placeholder {
-  color: #b3b3b3;
-}
-.line {
-  width: 2px;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.2);
-}
-.right-section {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  font-size: 1rem;
-}
-
-.icon-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.profile-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  font-size: 2rem;
-}
-
-.profile-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-@media (max-width: 900px) {
-  .top-bar {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 1rem;
+  .filter-pills {
+    display: flex;
+    gap: 8px;
   }
 
-  .center-section {
+  .filter-pill {
+    padding: 7px 18px;
+    border-radius: 20px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    background-color: #2a2a2a;
+    color: #fff;
+
+    &.active {
+      background-color: #fff;
+      color: #000;
+    }
+
+    &:hover:not(.active) {
+      background-color: #3a3a3a;
+    }
+  }
+
+  .section-nav-arrows {
+    display: flex;
+    gap: 8px;
+  }
+
+  .arrow-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #2a2a2a;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: #404040;
+    }
+  }
+}
+
+// ============================================================================
+// SECTION 2: Greeting Area (Dark Gradient Block)
+// ============================================================================
+.greeting-area {
+  min-height: 200px;
+  background: linear-gradient(180deg, #1a1a2e 0%, #121212 100%);
+  padding: 40px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+
+  .greeting-heading {
+    font-size: 32px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0;
     padding: 0;
-    width: 100%;
-    justify-content: center;
   }
 
-  .search-box {
-    max-width: 100%;
+  .fun-fact {
+    font-size: 13px;
+    color: #b3b3b3;
+    margin-top: 8px;
+    font-style: italic;
+    margin: 0;
+    padding: 0;
   }
 }
 
+// ============================================================================
+// SECTION 3: Quick-Play Grid
+// ============================================================================
+.quick-play-section {
+  padding: 0 24px;
+  margin-bottom: 32px;
+
+  .quick-play-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .quick-play-card {
+    background-color: #2a2a2a;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    height: 56px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: #3a3a3a;
+    }
+
+    .card-image {
+      width: 56px;
+      height: 56px;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #1a1a2e, #e94560);
+    }
+
+    .card-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      padding: 0 12px;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}
+
+// ============================================================================
+// SECTION 4: "New Release" Featured Card
+// ============================================================================
+.featured-section {
+  padding: 0 24px;
+  margin-bottom: 32px;
+
+  .featured-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+
+    .artist-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .featured-label {
+      display: flex;
+      flex-direction: column;
+
+      .label-text {
+        font-size: 12px;
+        color: #b3b3b3;
+      }
+
+      .artist-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: #fff;
+      }
+    }
+  }
+
+  .featured-card {
+    background-color: #181818;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    gap: 16px;
+
+    .featured-art {
+      width: 200px;
+      height: 200px;
+      border-radius: 8px;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #8b0000, #ff4500);
+    }
+
+    .featured-info {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      flex: 1;
+
+      .album-type {
+        font-size: 12px;
+        color: #b3b3b3;
+        margin-bottom: 8px;
+      }
+
+      .album-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: #fff;
+        margin: 0 0 16px 0;
+        padding: 0;
+      }
+
+      .action-buttons {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+
+        .play-btn {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background-color: #1db954;
+          color: #fff;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+          transition: background-color 0.2s;
+
+          &:hover {
+            background-color: #1ed760;
+          }
+        }
+
+        .action-btn {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background-color: #282828;
+          color: #fff;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          transition: background-color 0.2s;
+
+          &:hover {
+            background-color: #404040;
+          }
+        }
+      }
+    }
+  }
+}
+
+// ============================================================================
+// SHELF SECTIONS (Made For You, Recents, New Releases, Stations)
+// ============================================================================
+.shelf-section {
+  padding: 0 24px;
+  margin-bottom: 32px;
+
+  .shelf-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 12px;
+
+    .shelf-label {
+      font-size: 12px;
+      color: #b3b3b3;
+      margin-bottom: 4px;
+    }
+
+    .shelf-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+
+    .show-all-link {
+      font-size: 13px;
+      color: #b3b3b3;
+      font-weight: 700;
+      background: none;
+      border: none;
+      cursor: pointer;
+      transition: color 0.2s;
+
+      &:hover {
+        color: #fff;
+      }
+    }
+  }
+
+  .shelf-row {
+    display: flex;
+    overflow-x: auto;
+    gap: 16px;
+    padding: 0 0 16px 0;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
+// ============================================================================
+// SHELF CARDS (Made For You, Recents, New Releases)
+// ============================================================================
+.shelf-card {
+  width: 200px;
+  flex-shrink: 0;
+  background-color: #181818;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #282828;
+
+    .play-button-overlay {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .play-button-overlay {
+    position: absolute;
+    bottom: 70px;
+    right: 12px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: #1db954;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.2s;
+    z-index: 5;
+
+    &:hover {
+      background-color: #1ed760;
+    }
+  }
+
+  .card-image {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #4a1a6b, #e85d04);
+    margin-bottom: 8px;
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    margin: 10px 0 4px 0;
+    padding: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .card-subtitle {
+    font-size: 12px;
+    color: #b3b3b3;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}
+
+// ============================================================================
+// STATION CARDS (Recommended Stations)
+// ============================================================================
+.station-card {
+  width: 200px;
+  height: 200px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 12px;
+  transition: opacity 0.2s;
+  overflow: hidden;
+
+  &:hover {
+    opacity: 0.8;
+
+    .play-button-overlay {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .radio-label {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #fff;
+    background-color: rgba(0, 0, 0, 0.4);
+    padding: 2px 6px;
+    border-radius: 3px;
+    z-index: 3;
+  }
+
+  .station-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    position: relative;
+    z-index: 2;
+  }
+
+  .play-button-overlay {
+    position: absolute;
+    bottom: 50%;
+    left: 50%;
+    transform: translate(-50%, 50%);
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: #1db954;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    opacity: 0;
+    transform: translate(-50%, calc(50% + 8px));
+    transition: all 0.2s;
+    z-index: 4;
+
+    &:hover {
+      background-color: #1ed760;
+    }
+  }
+}
+
+// ============================================================================
+// SPACER (Bottom padding for comfortable scrolling)
+// ============================================================================
+.spacer {
+  height: 64px;
+  flex-shrink: 0;
+}
+
+// ============================================================================
+// RESPONSIVE
+// ============================================================================
+@media (max-width: 1200px) {
+  .quick-play-section .quick-play-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .featured-section .featured-card {
+    flex-direction: column;
+
+    .featured-art {
+      width: 100%;
+      height: 150px;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .sticky-header {
+    flex-direction: column;
+    gap: 12px;
+
+    .filter-pills {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .section-nav-arrows {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  .greeting-area {
+    min-height: 150px;
+    padding: 30px 24px 20px;
+
+    .greeting-heading {
+      font-size: 24px;
+    }
+
+    .fun-fact {
+      font-size: 12px;
+    }
+  }
+
+  .shelf-card {
+    width: 160px;
+
+    .card-image {
+      aspect-ratio: 1;
+    }
+  }
+
+  .station-card {
+    width: 160px;
+    height: 160px;
+
+    .station-name {
+      font-size: 16px;
+    }
+  }
+}
 
 

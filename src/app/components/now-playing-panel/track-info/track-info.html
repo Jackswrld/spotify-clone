@@ -1,0 +1,25 @@
+<section class="track-info" aria-label="Now playing track">
+  <img class="album-art" [src]="track.albumArt" [alt]="track.title" />
+
+  <div class="track-meta">
+    <div class="title-row">
+      <div class="title-copy">
+        <h2>{{ track.title }}</h2>
+        <p>{{ track.artist }}</p>
+      </div>
+
+      <div class="track-actions">
+        <button class="icon-button" type="button" [attr.aria-label]="shareLabel">
+          <i class="fa-solid fa-arrow-up-from-bracket"></i>
+        </button>
+        <button
+          class="icon-button saved"
+          type="button"
+          [class.is-saved]="track.isSaved"
+          [attr.aria-label]="savedLabel">
+          <i class="fa-solid fa-circle-check"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

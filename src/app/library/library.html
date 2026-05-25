@@ -43,9 +43,10 @@
       <button
         class="library-item"
         [class.active]="item.isActive"
+         [class.artist]="item.category === 'Artist'"
         type="button"
         (click)="selectItem(item)">
-        <div class="cover" [ngStyle]="{ 'background-image': item.imageUrl }">
+        <div class="cover"  [ngStyle]="{ 'background-image': item.imageUrl }">
           <span class="badge" *ngIf="item.badgeColor === 'aqua'"></span>
         </div>
         <div class="item-details" *ngIf="sidebarState !== 'collapsed'">

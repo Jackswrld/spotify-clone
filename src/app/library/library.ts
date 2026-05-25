@@ -298,6 +298,61 @@ export class Library {
       badgeColor: '',
       downloaded: false,
     },
+
+    {
+      id: 27,
+      title: 'Working Hard',
+      subtitle: 'Podcast',
+      category: 'Podcast',
+      imageUrl: 'linear-gradient(135deg, #45b494 0%, #421bce 100%)',
+      isActive: false,
+      badgeColor: 'aqua',
+      downloaded: false,
+    },
+
+    {
+      id: 28,
+      title: 'Jack wrld',
+      subtitle: 'Singer, Songwriter',
+      category: 'Artist',
+      imageUrl: 'linear-gradient(135deg, #d529a1 0%, #fcef63 100%)',
+      isActive: false,
+      badgeColor: 'aqua',
+      downloaded: false,
+    },
+
+     {
+      id: 29,
+      title: 'AURORA',
+      subtitle: 'Singer',
+      category: 'Artist',
+      imageUrl: 'linear-gradient(135deg, #71f9d3 0%, #007b7d 100%)',
+      isActive: false,
+      badgeColor: 'aqua',
+      downloaded: false,
+    },
+
+    {
+      id: 30,
+      title: 'Alan Walker',
+      subtitle: 'DJ and record producer',
+      category: 'Artist',
+      imageUrl: 'linear-gradient(135deg, #040082 0%, #007b7d 100%)',
+      isActive: false,
+      badgeColor: 'aqua',
+      downloaded: false,
+    },
+
+     {
+      id: 31,
+      title: 'The Weeknd',
+      subtitle: 'Singer and Songwriter',
+      category: 'Artist',
+      imageUrl: 'linear-gradient(135deg, #c90b0b 0%, #030c0c 100%)',
+      isActive: false,
+      badgeColor: 'aqua',
+      downloaded: false,
+    },
   ];
 
   protected get filteredLibraryItems(): LibraryItem[] {
