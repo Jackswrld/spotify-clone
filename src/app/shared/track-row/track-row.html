@@ -1,0 +1,33 @@
+<div class="row" role="row" [class.current]="isCurrent()">
+  <button type="button" class="main" (click)="play.emit()" [attr.aria-label]="'Play ' + track().title">
+    <span class="num" aria-hidden="true">
+      @if (isPlaying()) {
+        <span class="eq"><i></i><i></i><i></i></span>
+      } @else {
+        <span class="n">{{ index() + 1 }}</span>
+        <i class="fa-solid fa-play hover-play"></i>
+      }
+    </span>
+    @if (showArtwork()) {
+      <app-cover class="art" [src]="track().artwork.small" [seed]="track().id" />
+    }
+  </button>
+
+  <div class="meta">
+    <a class="title" [routerLink]="['/track', track().id]">{{ track().title }}</a>
+    @if (showAlbumArtist()) {
+      <a class="artist" [routerLink]="['/artist', track().artistId]">{{ track().artistName }}</a>
+    }
+  </div>
+
+  <!-- like-slot: wired in Task 9 -->
+  <span class="duration">{{ duration() }}</span>
+  <button
+    type="button"
+    class="more"
+    [attr.aria-label]="'More options for ' + track().title"
+    (click)="openMenu($event)"
+  >
+    <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+  </button>
+</div>
