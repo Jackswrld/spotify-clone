@@ -91,9 +91,24 @@
   opacity: 0;
 }
 
+.like {
+  opacity: 0;
+  &:has([aria-pressed='true']) {
+    opacity: 1;
+  }
+}
+
+.row:hover .like,
+.row:focus-within .like {
+  opacity: 1;
+}
+
 @media (hover: none) {
   .more {
     opacity: 1;
+  }
+  .like {
+    display: none;
   }
   .duration {
     display: none;

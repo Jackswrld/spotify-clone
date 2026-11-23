@@ -3,18 +3,21 @@ import { RouterLink } from '@angular/router';
 import { PlayerService } from '../../state/player.service';
 import { PanelStateService } from '../../state/panel-state.service';
 import { Cover } from '../../shared/cover/cover';
+import { LikeButton } from '../../shared/like-button/like-button';
+import { TrackMenuService } from '../../shared/add-to-playlist/track-menu.service';
 import { formatTime } from '../../shared/utils/format';
 
 /** Full playback bar for desktop and tablet. */
 @Component({
   selector: 'app-player-bar',
-  imports: [RouterLink, Cover],
+  imports: [RouterLink, Cover, LikeButton],
   templateUrl: './player-bar.html',
   styleUrl: './player-bar.scss',
 })
 export class PlayerBar {
   protected readonly player = inject(PlayerService);
   protected readonly panel = inject(PanelStateService);
+  protected readonly trackMenu = inject(TrackMenuService);
 
   /** Value shown while the user drags the seek slider; null when not dragging. */
   protected readonly dragValue = signal<number | null>(null);

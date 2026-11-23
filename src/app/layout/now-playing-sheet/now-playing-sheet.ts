@@ -3,12 +3,14 @@ import { RouterLink } from '@angular/router';
 import { PlayerService } from '../../state/player.service';
 import { ToastService } from '../../state/toast.service';
 import { Cover } from '../../shared/cover/cover';
+import { LikeButton } from '../../shared/like-button/like-button';
+import { TrackMenuService } from '../../shared/add-to-playlist/track-menu.service';
 import { formatTime } from '../../shared/utils/format';
 
 /** Phone: full-screen player opened from the mini player. */
 @Component({
   selector: 'app-now-playing-sheet',
-  imports: [RouterLink, Cover],
+  imports: [RouterLink, Cover, LikeButton],
   templateUrl: './now-playing-sheet.html',
   styleUrl: './now-playing-sheet.scss',
   host: { '(document:keydown.escape)': 'open() && close.emit()' },
@@ -16,6 +18,7 @@ import { formatTime } from '../../shared/utils/format';
 export class NowPlayingSheet {
   protected readonly player = inject(PlayerService);
   private readonly toast = inject(ToastService);
+  protected readonly trackMenu = inject(TrackMenuService);
 
   readonly open = input(false);
   /** Background colour; Task 15 passes the artwork colour. */

@@ -1,0 +1,76 @@
+@if (menu.state(); as state) {
+  @if (isSheet()) {
+    <div class="backdrop" (click)="close()"></div>
+  }
+  <div
+    #panel
+    role="menu"
+    [attr.aria-label]="'Options for ' + state.track.title"
+    [class.sheet]="isSheet()"
+    [class.popover]="!isSheet()"
+    [style.left.px]="position()?.left"
+    [style.top.px]="position()?.top"
+    [style.bottom.px]="position()?.bottom"
+    (keydown)="onKeydown($event)"
+  >
+    @if (isSheet()) {
+      <div class="sheet-head">
+        <span class="sheet-title">{{ state.track.title }}</span>
+        <span class="sheet-sub">{{ state.track.artistName }}</span>
+      </div>
+    }
+
+    @if (!showPlaylists()) {
+      <button type="button" role="menuitem" (click)="playNext()">
+        <i class="fa-solid fa-arrow-turn-down" aria-hidden="true"></i>Play next
+      </button>
+      <button type="button" role="menuitem" (click)="addToQueue()">
+        <i class="fa-solid fa-list" aria-hidden="true"></i>Add to queue
+      </button>
+      <button type="button" role="menuitem" aria-haspopup="menu" (click)="showPlaylists.set(true)">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i>Add to playlist
+        <i class="fa-solid fa-chevron-right end" aria-hidden="true"></i>
+      </button>
+      <button type="button" role="menuitem" (click)="toggleLike()">
+        @if (library.isLiked(state.track.id)) {
+          <i class="fa-solid fa-heart liked" aria-hidden="true"></i>Remove from Liked songs
+        } @else {
+          <i class="fa-regular fa-heart" aria-hidden="true"></i>Like
+        }
+      </button>
+      @for (extra of state.extras; track extra.label) {
+        <button type="button" role="menuitem" (click)="runExtra(extra.action)">
+          <i [class]="'fa-solid ' + extra.icon" aria-hidden="true"></i>{{ extra.label }}
+        </button>
+      }
+      <hr />
+      <button type="button" role="menuitem" (click)="goToArtist()">
+        <i class="fa-solid fa-user" aria-hidden="true"></i>Go to artist
+      </button>
+      <a
+        role="menuitem"
+        [href]="'https://audius.co' + state.track.permalink"
+        target="_blank"
+        rel="noopener"
+        (click)="close()"
+      >
+        <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>Open on Audius
+      </a>
+    } @else {
+      <button type="button" role="menuitem" class="back" (click)="showPlaylists.set(false)">
+        <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>Back
+      </button>
+      <button type="button" role="menuitem" (click)="addToNew()">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i>New playlist
+      </button>
+      <hr />
+      @for (p of library.myPlaylists(); track p.id) {
+        <button type="button" role="menuitem" (click)="addTo(p)">
+          <i class="fa-solid fa-music" aria-hidden="true"></i>{{ p.name }}
+        </button>
+      } @empty {
+        <p class="none">You haven't made any playlists yet.</p>
+      }
+    }
+  </div>
+}

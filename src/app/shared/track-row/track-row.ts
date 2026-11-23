@@ -3,6 +3,8 @@ import { RouterLink } from '@angular/router';
 import { Track } from '../../core/models';
 import { PlayerService } from '../../state/player.service';
 import { Cover } from '../cover/cover';
+import { LikeButton } from '../like-button/like-button';
+import { TrackMenuExtra, TrackMenuService } from '../add-to-playlist/track-menu.service';
 import { formatTime } from '../utils/format';
 
 export interface TrackMenuEvent {
@@ -13,17 +15,20 @@ export interface TrackMenuEvent {
 /** One playable song in a list. */
 @Component({
   selector: 'app-track-row',
-  imports: [RouterLink, Cover],
+  imports: [RouterLink, Cover, LikeButton],
   templateUrl: './track-row.html',
   styleUrl: './track-row.scss',
 })
 export class TrackRow {
   private readonly player = inject(PlayerService);
+  private readonly trackMenu = inject(TrackMenuService);
 
   readonly track = input.required<Track>();
   readonly index = input(0);
   readonly showArtwork = input(true);
   readonly showAlbumArtist = input(true);
+  /** Extra menu entries for this list, e.g. "Remove from this playlist". */
+  readonly extraMenuItems = input<TrackMenuExtra[]>([]);
 
   readonly play = output<void>();
   readonly menu = output<TrackMenuEvent>();
@@ -33,6 +38,8 @@ export class TrackRow {
   protected readonly duration = computed(() => formatTime(this.track().duration));
 
   protected openMenu(event: MouseEvent): void {
-    this.menu.emit({ track: this.track(), anchor: event.currentTarget as HTMLElement });
+    const anchor = event.currentTarget as HTMLElement;
+    this.menu.emit({ track: this.track(), anchor });
+    this.trackMenu.open(this.track(), anchor, this.extraMenuItems());
   }
 }

@@ -6,7 +6,15 @@
         <a class="title" [routerLink]="['/track', track.id]">{{ track.title }}</a>
         <a class="artist" [routerLink]="['/artist', track.artistId]">{{ track.artistName }}</a>
       </div>
-      <!-- like-slot: wired in Task 9 -->
+      <app-like-button [track]="track" />
+      <button
+        type="button"
+        class="icon"
+        [attr.aria-label]="'More options for ' + track.title"
+        (click)="trackMenu.open(track, $any($event.currentTarget))"
+      >
+        <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+      </button>
     </div>
 
     <div class="controls">

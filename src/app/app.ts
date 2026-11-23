@@ -7,6 +7,7 @@ import { PlayerBar } from './layout/player-bar/player-bar';
 import { MiniPlayer } from './layout/mini-player/mini-player';
 import { NowPlayingSheet } from './layout/now-playing-sheet/now-playing-sheet';
 import { Toast } from './shared/toast/toast';
+import { TrackMenu } from './shared/add-to-playlist/add-to-playlist';
 import { PlayerService } from './state/player.service';
 import { ToastService } from './state/toast.service';
 import { LayoutService } from './state/layout.service';
@@ -14,7 +15,7 @@ import { PanelStateService } from './state/panel-state.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Navbar, TabBar, Library, PlayerBar, MiniPlayer, NowPlayingSheet, Toast],
+  imports: [RouterOutlet, Navbar, TabBar, Library, PlayerBar, MiniPlayer, NowPlayingSheet, Toast, TrackMenu],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

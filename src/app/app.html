@@ -33,6 +33,8 @@
   <app-toast />
 </div>
 
+<app-track-menu />
+
 @if (layout.mode() === 'phone') {
   <app-now-playing-sheet [open]="sheetOpen()" (close)="sheetOpen.set(false)" (openQueue)="sheetOpen.set(false)" />
 }

@@ -67,6 +67,16 @@
   gap: 12px;
 }
 
+.actions {
+  display: flex;
+  gap: 4px;
+}
+
+.like {
+  --size: var(--tap);
+  font-size: 20px;
+}
+
 .meta {
   display: flex;
   flex-direction: column;

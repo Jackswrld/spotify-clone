@@ -1,0 +1,111 @@
+@use 'ui';
+
+[role='menu'] {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--surface-2);
+  box-shadow: 0 16px 48px var(--scrim);
+}
+
+.popover {
+  width: 260px;
+  max-height: min(420px, 80vh);
+  overflow-y: auto;
+  border-radius: var(--radius-s);
+}
+
+.sheet {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 8px 8px calc(16px + env(safe-area-inset-bottom));
+  border-radius: var(--radius-l) var(--radius-l) 0 0;
+  animation: up 0.18s ease-out;
+}
+
+@keyframes up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 79;
+  background: var(--scrim);
+}
+
+.sheet-head {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.sheet-title {
+  @include ui.truncate;
+  font-weight: 700;
+}
+
+.sheet-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+[role='menuitem'] {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+
+  i {
+    width: 16px;
+    color: var(--text-muted);
+  }
+
+  &:hover,
+  &:focus-visible {
+    background: var(--hover);
+    outline: none;
+  }
+}
+
+.sheet [role='menuitem'] {
+  min-height: var(--tap);
+  font-size: 15px;
+}
+
+.end {
+  margin-left: auto;
+}
+
+.liked {
+  color: var(--accent) !important;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+
+.none {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
