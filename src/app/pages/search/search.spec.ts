@@ -157,6 +157,26 @@ describe('SearchPage', () => {
     expect(nav).toHaveBeenCalledWith(['/search'], jasmine.objectContaining({ queryParams: { q: 'Chill' } }));
   });
 
+  it('shows an error with Retry when every search fails, and retry searches again', fakeAsync(() => {
+    const { setQ, el, fixture, api } = setup();
+    const fail = () => new Observable<never>((s) => s.error(new Error('offline')));
+    api.searchTracks.and.callFake(fail);
+    api.searchArtists.and.callFake(fail);
+    api.searchPlaylists.and.callFake(fail);
+    setQ('beat');
+    tick(300);
+    fixture.detectChanges();
+    expect(el.textContent).not.toContain('No results');
+    expect(el.textContent).toContain("Couldn't search right now");
+    api.searchTracks.and.returnValue(of([makeTrack('1', { title: 'Back Online' })]));
+    api.searchArtists.and.returnValue(of([]));
+    api.searchPlaylists.and.returnValue(of([]));
+    (el.querySelector('button.retry') as HTMLButtonElement).click();
+    tick(300);
+    fixture.detectChanges();
+    expect(el.textContent).toContain('Back Online');
+  }));
+
   it('a failing search group still shows the others', fakeAsync(() => {
     const { setQ, el, fixture, api } = setup();
     api.searchPlaylists.and.returnValue(new Observable((s) => s.error(new Error('x'))));

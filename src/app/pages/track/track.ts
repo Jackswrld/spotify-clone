@@ -1,5 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 import { of } from 'rxjs';
 import { AudiusApi } from '../../core/api/audius-api';
 import { PlayerService } from '../../state/player.service';
@@ -59,6 +60,11 @@ export class TrackPage {
 
   constructor() {
     scrollMainToTopOn(this.id);
+  }
+
+  /** A network or server failure (worth retrying), as opposed to a track that isn't playable or doesn't exist. */
+  protected isNetworkError(error: unknown): boolean {
+    return error instanceof HttpErrorResponse && error.status !== 404;
   }
 
   protected year(date: string | null): string | null {

@@ -2,6 +2,7 @@ import { ArtistEnrichmentService } from '../../state/artist-enrichment.service';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 import { TrackPage } from './track';
 import { AudiusApi } from '../../core/api/audius-api';
 import { LyricsApi } from '../../core/api/lyrics-api';
@@ -91,6 +92,16 @@ describe('TrackPage', () => {
   it('shows the unavailable message when the API errors', () => {
     const { el } = setup(throwError(() => new Error('gated')));
     expect(el.textContent).toContain("This track isn't available.");
+  });
+
+  it('shows a retry for network errors instead of "not available"', () => {
+    const { el, api, fixture } = setup(throwError(() => new HttpErrorResponse({ status: 0, statusText: 'Unknown Error' })));
+    expect(el.textContent).not.toContain("This track isn't available.");
+    expect(el.textContent).toContain("Couldn't load this track.");
+    api.track.and.returnValue(of(TRACK));
+    (el.querySelector('button.retry') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(el.querySelector('h1')?.textContent).toContain('Fragments');
   });
 
   it('reloads when the route id changes', () => {

@@ -44,7 +44,7 @@ export class PlayerService {
   private readonly _shuffle: ReturnType<typeof signal<boolean>>;
   private readonly _repeat: ReturnType<typeof signal<RepeatMode>>;
   private readonly _error = signal<string | null>(null);
-  private readonly _recent = signal<Track[]>(safeStorage.get<Track[]>(RECENT_KEY, []));
+  private readonly _recent = signal<Track[]>(safeStorage.getArray<Track>(RECENT_KEY));
 
   /** Queue order before shuffle was turned on; used to restore it. */
   private originalQueue: Track[] = [];
@@ -95,6 +95,7 @@ export class PlayerService {
 
   playTracks(tracks: Track[], startIndex = 0): void {
     if (!tracks.length) return;
+    this.resetErrors(); // the user chose something new: give it a fresh start
     const start = Math.min(Math.max(startIndex, 0), tracks.length - 1);
     this.originalQueue = [...tracks];
     if (this._shuffle()) {
@@ -105,6 +106,13 @@ export class PlayerService {
       this._queue.set([...tracks]);
       this.load(start);
     }
+  }
+
+  /** Jumps to a position in the current queue, keeping its order (and shuffle) as it is. */
+  playAt(queueIndex: number): void {
+    if (queueIndex < 0 || queueIndex >= this._queue().length) return;
+    this.resetErrors();
+    this.load(queueIndex);
   }
 
   playNext(track: Track): void {
@@ -170,8 +178,15 @@ export class PlayerService {
 
   toggle(): void {
     if (!this.current()) return;
-    if (this.audio.paused) this.play();
-    else this.audio.pause();
+    if (this.audio.error) {
+      // The element is stuck after a failed load; reload the track instead of calling play().
+      this.resetErrors();
+      this.load(this._index());
+    } else if (this.audio.paused) {
+      this.play();
+    } else {
+      this.audio.pause();
+    }
   }
 
   next(): void {
@@ -264,8 +279,9 @@ export class PlayerService {
     result?.catch((err: unknown) => {
       const name = (err as { name?: string })?.name;
       if (name === 'AbortError') return; // superseded by a newer load; not a failure
-      if (name === 'NotAllowedError') this._isPlaying.set(false); // autoplay blocked
-      // Other failures surface through the element's 'error' event.
+      // Autoplay blocked, no usable source, etc.: show Play again. Stream failures also
+      // surface through the element's 'error' event, which handles skipping.
+      this._isPlaying.set(false);
     });
   }
 
@@ -320,14 +336,25 @@ export class PlayerService {
     if (!track) return;
     this.consecutiveErrors++;
     if (this.consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-      this._error.set('Playback failed. Check your connection.');
+      this.announce('Playback failed. Check your connection.');
       this.stop();
       return;
     }
-    this._error.set(`Couldn't play "${track.title}". Skipping.`);
+    this.announce(`Couldn't play "${track.title}". Skipping.`);
     const isLast = this._index() >= this._queue().length - 1;
     if (isLast && this._repeat() !== 'all') this.stop();
     else this.next();
+  }
+
+  /** Sets the message even when it repeats, so listeners (the toast) hear it again. */
+  private announce(message: string): void {
+    this._error.set(null);
+    this._error.set(message);
+  }
+
+  private resetErrors(): void {
+    this.consecutiveErrors = 0;
+    this._error.set(null);
   }
 
   private remember(track: Track | null): void {

@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { Injectable } from '@angular/core';
+import { Injectable, effect } from '@angular/core';
 import { PlayerService, RANDOM } from './player.service';
 import { AudiusApi } from '../core/api/audius-api';
 import { Track } from '../core/models';
@@ -182,6 +182,63 @@ describe('PlayerService', () => {
     expect(p.error()).toBe(`Couldn't play "Song 3". Skipping.`);
   });
 
+  it('recovers after the 3-error stop when the user plays something new', () => {
+    const p = setup();
+    p.playTracks(T, 0);
+    lastAudio.dispatch('error');
+    lastAudio.dispatch('error');
+    lastAudio.dispatch('error');
+    expect(p.isPlaying()).toBeFalse();
+
+    p.playTracks(T, 0);
+    expect(p.error()).toBeNull();
+    lastAudio.dispatch('error');
+    expect(p.current()?.id).toBe('2');
+    expect(p.error()).toBe(`Couldn't play "Song 1". Skipping.`);
+  });
+
+  it('re-announces a repeated error message so the toast shows again', () => {
+    const p = setup();
+    const announced: string[] = [];
+    TestBed.runInInjectionContext(() =>
+      effect(() => {
+        const message = p.error();
+        if (message) announced.push(message);
+      }),
+    );
+    p.cycleRepeat(); // all: a single failing track is retried
+    p.playTracks([T[0]], 0);
+    lastAudio.dispatch('error');
+    TestBed.flushEffects();
+    lastAudio.dispatch('error');
+    TestBed.flushEffects();
+    expect(announced).toEqual([`Couldn't play "Song 1". Skipping.`, `Couldn't play "Song 1". Skipping.`]);
+  });
+
+  it('a non-abort play() rejection resets isPlaying', async () => {
+    const p = setup();
+    p.playTracks(T, 0);
+    lastAudio.dispatch('playing');
+    spyOn(FakeAudio.prototype, 'play').and.callFake(() =>
+      Promise.reject(new DOMException('no source', 'NotSupportedError')),
+    );
+    lastAudio.paused = true;
+    lastAudio.dispatch('pause');
+    p.toggle();
+    expect(p.isPlaying()).toBeTrue(); // optimistic until play() settles
+    await flush();
+    expect(p.isPlaying()).toBeFalse();
+  });
+
+  it('toggle reloads the track when the element is in an error state', () => {
+    const p = setup();
+    p.playTracks(T, 1);
+    lastAudio.src = '';
+    (lastAudio as unknown as { error: unknown }).error = { code: 2 };
+    p.toggle();
+    expect(lastAudio.src).toBe('stream:2');
+  });
+
   it('error on the last track stops instead of looping', () => {
     const p = setup();
     p.playTracks(T, 4);
@@ -240,6 +297,20 @@ describe('PlayerService', () => {
     p.removeFromQueue(2);
     expect(p.current()?.id).toBe('4');
     expect(lastAudio.src).toBe('stream:4');
+  });
+
+  it('playAt jumps within the queue without reshuffling or losing the original order', () => {
+    const p = setup(() => 0);
+    p.playTracks(T, 0);
+    p.toggleShuffle();
+    const shuffled = ids(p.queue());
+    p.playAt(3);
+    expect(ids(p.queue())).toEqual(shuffled);
+    expect(p.index()).toBe(3);
+    expect(lastAudio.src).toBe(`stream:${shuffled[3]}`);
+    p.toggleShuffle();
+    expect(ids(p.queue())).toEqual(['1', '2', '3', '4', '5']);
+    expect(p.current()?.id).toBe(shuffled[3]);
   });
 
   it('playNext inserts after current; addToQueue appends', () => {
@@ -304,6 +375,17 @@ describe('PlayerService', () => {
       p.setVolume(0.5);
       TestBed.flushEffects();
     }).not.toThrow();
+  });
+
+  it('ignores recently played data of the wrong shape', () => {
+    localStorage.setItem('player.recent', '{}');
+    expect(setup().recentlyPlayed()).toEqual([]);
+    TestBed.resetTestingModule();
+    localStorage.setItem('player.recent', JSON.stringify([null, 'x', makeTrack('ok')]));
+    const p = setup();
+    expect(p.recentlyPlayed().map((t) => t.id)).toEqual(['ok']);
+    p.playTracks(T, 0);
+    expect(() => lastAudio.dispatch('playing')).not.toThrow();
   });
 
   it('recentlyPlayed is unique, newest first, capped at 20', () => {

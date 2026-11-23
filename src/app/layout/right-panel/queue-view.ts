@@ -113,6 +113,6 @@ export class QueueView {
   }
 
   protected playAt(viewIndex: number): void {
-    this.player.playTracks(this.player.queue(), this.toQueueIndex(viewIndex));
+    this.player.playAt(this.toQueueIndex(viewIndex));
   }
 }

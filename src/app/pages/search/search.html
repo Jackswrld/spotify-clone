@@ -28,6 +28,9 @@
     @case ('loading') {
       <app-skeleton shape="row" [count]="8" />
     }
+    @case ('error') {
+      <app-error-state message="Couldn't search right now. Check your connection." (retry)="retry()" />
+    }
     @case ('ready') {
       @if (isEmpty()) {
         <div class="empty">

@@ -21,6 +21,7 @@ function setup(queue: Track[], index: number) {
     removeFromQueue: jasmine.createSpy('removeFromQueue'),
     clearQueue: jasmine.createSpy('clearQueue'),
     playTracks: jasmine.createSpy('playTracks'),
+    playAt: jasmine.createSpy('playAt'),
   };
   TestBed.configureTestingModule({
     imports: [QueueView],
@@ -55,10 +56,11 @@ describe('QueueView', () => {
     expect(player.removeFromQueue).toHaveBeenCalledWith(3);
   });
 
-  it('clicking a next-up row plays from that queue index', () => {
+  it('clicking a next-up row jumps to that queue index without rebuilding the queue', () => {
     const { el, player } = setup(FIVE, 1);
     (el.querySelectorAll('.next app-track-row button.main')[0] as HTMLButtonElement).click();
-    expect(player.playTracks).toHaveBeenCalledWith(FIVE, 2);
+    expect(player.playAt).toHaveBeenCalledWith(2);
+    expect(player.playTracks).not.toHaveBeenCalled();
   });
 
   it('shows empty message when upNext is empty', () => {

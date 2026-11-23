@@ -5,7 +5,7 @@ import { Observable, catchError, map, of, startWith, switchMap } from 'rxjs';
 export type Loadable<T> =
   | { status: 'loading'; data: null }
   | { status: 'ready'; data: T }
-  | { status: 'error'; data: null };
+  | { status: 'error'; data: null; error: unknown };
 
 /**
  * Turns "input → request" into a signal with loading/ready/error states.
@@ -24,7 +24,7 @@ export function loadable<I, T>(
       switchMap(({ value }) =>
         request(value).pipe(
           map((data) => ({ status: 'ready', data }) as Loadable<T>),
-          catchError(() => of({ status: 'error', data: null } as Loadable<T>)),
+          catchError((error: unknown) => of({ status: 'error', data: null, error } as Loadable<T>)),
           startWith({ status: 'loading', data: null } as Loadable<T>),
         ),
       ),

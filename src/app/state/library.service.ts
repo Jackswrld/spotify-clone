@@ -11,10 +11,9 @@ const KEYS = {
 
 const MAX_NAME = 100;
 
-/** Reads an array from storage; anything else (corrupt, wrong type) becomes []. */
-function loadArray<T>(key: string): T[] {
-  const value = safeStorage.get<unknown>(key, []);
-  return Array.isArray(value) ? (value as T[]) : [];
+/** Reads an array from storage; anything else (corrupt, wrong type, bad entries) is dropped. */
+function loadArray<T extends { id: string }>(key: string): T[] {
+  return safeStorage.getArray<T>(key);
 }
 
 function newId(): string {

@@ -126,6 +126,15 @@ describe('LibraryService', () => {
     expect(lib.myPlaylists()).toEqual([]);
   });
 
+  it('drops malformed entries inside stored arrays', () => {
+    localStorage.setItem('library.liked', JSON.stringify([null, 42, makeTrack('1')]));
+    localStorage.setItem('library.savedArtists', JSON.stringify([{ name: 'no id' }]));
+    const lib = fresh();
+    expect(lib.likedTracks().map((t) => t.id)).toEqual(['1']);
+    expect(lib.isLiked('1')).toBeTrue();
+    expect(lib.savedArtists()).toEqual([]);
+  });
+
   it('keeps working in memory when setItem throws (quota)', () => {
     spyOn(Storage.prototype, 'setItem').and.throwError('QuotaExceededError');
     const lib = fresh();

@@ -5,9 +5,13 @@
       <div class="header"><app-skeleton shape="text" [count]="3" /></div>
     }
     @case ('error') {
-      <app-error-state message="This track isn't available." [showRetry]="false">
-        <a routerLink="/home" class="home-link">Go home</a>
-      </app-error-state>
+      @if (isNetworkError(state.error)) {
+        <app-error-state message="Couldn't load this track." (retry)="track.retry()" />
+      } @else {
+        <app-error-state message="This track isn't available." [showRetry]="false">
+          <a routerLink="/home" class="home-link">Go home</a>
+        </app-error-state>
+      }
     }
     @case ('ready') {
       @let t = state.data;
