@@ -6,6 +6,7 @@ import { NowPlayingView } from './now-playing-view';
 import { PlayerService } from '../../state/player.service';
 import { PanelStateService } from '../../state/panel-state.service';
 import { AudiusApi } from '../../core/api/audius-api';
+import { LyricsService } from '../../state/lyrics.service';
 import { Track } from '../../core/models';
 import { makeTrack } from '../../core/testing/make-track';
 import { makeArtist } from '../../pages/testing/page-test-helpers';
@@ -30,6 +31,10 @@ function setup() {
       { provide: PlayerService, useValue: player },
       { provide: AudiusApi, useValue: api },
       { provide: PanelStateService, useValue: { open: jasmine.createSpy('open') } },
+      {
+        provide: LyricsService,
+        useValue: { lyrics: signal({ trackId: '', status: 'idle', data: null }), activeIndex: signal(-1) },
+      },
     ],
   });
   const fixture = TestBed.createComponent(NowPlayingView);

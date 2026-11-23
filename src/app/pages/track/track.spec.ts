@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { TrackPage } from './track';
 import { AudiusApi } from '../../core/api/audius-api';
+import { LyricsApi } from '../../core/api/lyrics-api';
 import { PlayerService } from '../../state/player.service';
 import { makeTrack } from '../../core/testing/make-track';
 import { fakePlayer, makeArtist } from '../testing/page-test-helpers';
@@ -37,6 +38,10 @@ function setup(trackResult = of(TRACK)) {
       provideRouter([]),
       { provide: AudiusApi, useValue: api },
       { provide: PlayerService, useValue: player },
+      {
+        provide: LyricsApi,
+        useValue: { get: () => of({ plain: 'Look at the stars', lines: [], instrumental: false }) },
+      },
     ],
   });
   const fixture = TestBed.createComponent(TrackPage);
@@ -92,6 +97,13 @@ describe('TrackPage', () => {
     fixture.detectChanges();
     expect(api.track).toHaveBeenCalledWith('t2');
     expect(el.querySelector('h1')?.textContent).toContain('Second');
+  });
+
+  it('shows plain lyrics for a song that is not playing, with credit', () => {
+    const { el } = setup();
+    const section = el.querySelector('section.lyrics') as HTMLElement;
+    expect(section.textContent).toContain('Look at the stars');
+    expect(section.textContent).toContain('LRCLIB');
   });
 
   it('lists more by the artist excluding this track', () => {

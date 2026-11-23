@@ -72,7 +72,31 @@
           <span><strong>{{ formatCount(t.repostCount) }}</strong> reposts</span>
         </section>
 
-        <!-- lyrics-slot -->
+        @if (isCurrent()) {
+          @let live = lyricsService.lyrics();
+          @if (live.status === 'ready' && live.data) {
+            <section class="section lyrics">
+              <h2>Lyrics</h2>
+              @if (live.data.lines.length) {
+                <app-lyrics-lines
+                  [lines]="live.data.lines"
+                  [activeIndex]="lyricsService.activeIndex()"
+                  [compact]="true"
+                  (seek)="player.seek($event)"
+                />
+              } @else {
+                <p class="prose">{{ live.data.instrumental ? '♪ Instrumental' : live.data.plain }}</p>
+              }
+              <p class="credit">Lyrics from <a href="https://lrclib.net" target="_blank" rel="noopener">LRCLIB</a></p>
+            </section>
+          }
+        } @else if (staticLyrics.state().data; as l) {
+          <section class="section lyrics">
+            <h2>Lyrics</h2>
+            <p class="prose">{{ l.instrumental ? '♪ Instrumental' : l.plain }}</p>
+            <p class="credit">Lyrics from <a href="https://lrclib.net" target="_blank" rel="noopener">LRCLIB</a></p>
+          </section>
+        }
 
         @if (artist.state().data; as a) {
           <section class="section">

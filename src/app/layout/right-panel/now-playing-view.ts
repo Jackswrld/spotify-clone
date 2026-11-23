@@ -5,6 +5,7 @@ import { AudiusApi } from '../../core/api/audius-api';
 import { PlayerService } from '../../state/player.service';
 import { PanelStateService } from '../../state/panel-state.service';
 import { LibraryService } from '../../state/library.service';
+import { LyricsService } from '../../state/lyrics.service';
 import { Cover } from '../../shared/cover/cover';
 import { LikeButton } from '../../shared/like-button/like-button';
 import { TrackRow } from '../../shared/track-row/track-row';
@@ -23,6 +24,7 @@ export class NowPlayingView {
   protected readonly player = inject(PlayerService);
   protected readonly panel = inject(PanelStateService);
   protected readonly library = inject(LibraryService);
+  protected readonly lyrics = inject(LyricsService);
 
   /** False inside the phone sheet, which already shows the artwork and title. */
   readonly showHeader = input(true);
@@ -36,6 +38,15 @@ export class NowPlayingView {
   protected readonly moreByArtist = computed(() =>
     (this.artistTracks.state().data ?? []).filter((t) => t.id !== this.player.current()?.id).slice(0, 5),
   );
+  /** The active lyric line with one line either side. */
+  protected readonly lyricPreview = computed(() => {
+    const lines = this.lyrics.lyrics().data?.lines ?? [];
+    if (!lines.length) return [];
+    const active = Math.max(0, this.lyrics.activeIndex());
+    const start = Math.max(0, Math.min(active - 1, lines.length - 3));
+    return lines.slice(start, start + 3).map((line, i) => ({ ...line, active: start + i === this.lyrics.activeIndex() }));
+  });
+
   protected readonly nextUp = computed(() => this.player.upNext()[0] ?? null);
   protected readonly following = computed(() => {
     const a = this.artist.state().data;

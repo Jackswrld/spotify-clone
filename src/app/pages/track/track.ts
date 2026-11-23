@@ -3,6 +3,8 @@ import { RouterLink } from '@angular/router';
 import { of } from 'rxjs';
 import { AudiusApi } from '../../core/api/audius-api';
 import { PlayerService } from '../../state/player.service';
+import { LyricsService } from '../../state/lyrics.service';
+import { LyricsLines } from '../../shared/lyrics-lines/lyrics-lines';
 import { TrackMenuService } from '../../shared/add-to-playlist/track-menu.service';
 import { Cover } from '../../shared/cover/cover';
 import { LikeButton } from '../../shared/like-button/like-button';
@@ -15,7 +17,7 @@ import { scrollMainToTopOn } from '../scroll-top';
 
 @Component({
   selector: 'app-track-page',
-  imports: [RouterLink, Cover, LikeButton, TrackRow, ErrorState, Skeleton],
+  imports: [RouterLink, Cover, LikeButton, TrackRow, ErrorState, Skeleton, LyricsLines],
   templateUrl: './track.html',
   styleUrl: './track.scss',
 })
@@ -23,6 +25,7 @@ export class TrackPage {
   private readonly api = inject(AudiusApi);
   protected readonly player = inject(PlayerService);
   protected readonly trackMenu = inject(TrackMenuService);
+  protected readonly lyricsService = inject(LyricsService);
 
   /** Route param, bound by the router. */
   readonly id = input.required<string>();
@@ -42,6 +45,10 @@ export class TrackPage {
   );
 
   protected readonly isCurrent = computed(() => this.player.current()?.id === this.id());
+
+  /** Lyrics for this page's track when it isn't the one playing (the playing one comes from LyricsService). */
+  private readonly trackForLyrics = computed(() => (this.isCurrent() ? null : this.track.state().data));
+  protected readonly staticLyrics = loadable(this.trackForLyrics, (t) => (t ? this.lyricsService.fetchFor(t) : of(null)));
   protected readonly isPlayingThis = computed(() => this.isCurrent() && this.player.isPlaying());
 
   protected readonly formatCount = formatCount;

@@ -55,6 +55,21 @@
   overflow: hidden;
 }
 
+.credit {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+
+  a {
+    text-decoration: underline;
+  }
+}
+
+.lyrics .prose {
+  color: var(--text);
+  font-size: 16px;
+}
+
 .home-link {
   text-decoration: underline;
 }

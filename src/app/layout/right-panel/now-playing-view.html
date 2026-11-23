@@ -26,7 +26,17 @@
       </div>
     }
 
-    <!-- lyrics-preview-slot -->
+    @if (lyricPreview().length) {
+      <section class="card lyrics-preview">
+        <div class="card-head">
+          <h3>Lyrics</h3>
+          <a routerLink="/lyrics" class="link">Show lyrics</a>
+        </div>
+        @for (line of lyricPreview(); track $index) {
+          <p class="lyric" [class.active]="line.active">{{ line.text || '♪' }}</p>
+        }
+      </section>
+    }
 
     @if (artist.state().data; as a) {
       <section class="card about">

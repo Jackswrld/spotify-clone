@@ -126,6 +126,17 @@
   @include ui.follow-button;
 }
 
+.lyric {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--text-muted);
+
+  &.active {
+    color: var(--text);
+  }
+}
+
 .muted,
 .placeholder {
   color: var(--text-muted);

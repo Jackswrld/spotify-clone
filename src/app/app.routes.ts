@@ -18,6 +18,6 @@ export const routes: Routes = [
   { path: 'playlist/:id', loadComponent: () => import('./pages/playlist/playlist').then((m) => m.PlaylistPage) },
   { path: 'my-playlist/:id', loadComponent: () => import('./pages/my-playlist/my-playlist').then((m) => m.MyPlaylistPage) },
   { path: 'library', loadComponent: () => import('./pages/library/library').then((m) => m.LibraryPage) },
-  { path: 'lyrics', component: EmptyPage },
+  { path: 'lyrics', loadComponent: () => import('./pages/lyrics/lyrics').then((m) => m.LyricsPage) },
   { path: '**', redirectTo: 'home' },
 ];
