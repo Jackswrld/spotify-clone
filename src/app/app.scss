@@ -83,3 +83,34 @@
 .shell-tabbar {
   grid-area: tabbar;
 }
+
+.phone-queue {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+.phone-queue-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+
+  h2 {
+    font-size: 16px;
+    font-weight: 700;
+  }
+}
+
+.phone-queue-close {
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  border: 0;
+  background: none;
+  font-size: 20px;
+  cursor: pointer;
+}

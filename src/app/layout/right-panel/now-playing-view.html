@@ -1,0 +1,79 @@
+@if (player.current(); as track) {
+  <div class="view">
+    @if (showHeader()) {
+      <app-cover class="art" [src]="track.artwork.medium" [seed]="track.id" [alt]="track.title" />
+
+      <div class="title-row">
+        <div class="meta">
+          <a class="title" [routerLink]="['/track', track.id]">{{ track.title }}</a>
+          <a class="artist-link" [routerLink]="['/artist', track.artistId]">{{ track.artistName }}</a>
+        </div>
+        <app-like-button [track]="track" />
+      </div>
+    }
+
+    @if (track.genre || track.mood || track.tags.length) {
+      <div class="pills" aria-label="Tags">
+        @if (track.genre) {
+          <span class="pill">{{ track.genre }}</span>
+        }
+        @if (track.mood) {
+          <span class="pill">{{ track.mood }}</span>
+        }
+        @for (tag of track.tags.slice(0, 4); track tag) {
+          <span class="pill">#{{ tag }}</span>
+        }
+      </div>
+    }
+
+    <!-- lyrics-preview-slot -->
+
+    @if (artist.state().data; as a) {
+      <section class="card about">
+        <h3>About the artist</h3>
+        <a [routerLink]="['/artist', a.id]" class="about-head">
+          <app-cover class="avatar" [src]="a.avatar.medium" [seed]="a.id" [round]="true" />
+          <span>
+            <span class="about-name">
+              {{ a.name }}
+              @if (a.verified) {
+                <i class="fa-solid fa-circle-check verified" aria-label="Verified"></i>
+              }
+            </span>
+            <span class="about-followers">{{ formatCount(a.followerCount) }} followers</span>
+          </span>
+        </a>
+        @if (shortBio(a.bio); as bio) {
+          <p class="bio">{{ bio }}</p>
+        }
+        <button type="button" class="follow" [attr.aria-pressed]="following()" (click)="toggleFollow()">
+          {{ following() ? 'Following' : 'Follow' }}
+        </button>
+        <!-- lastfm-slot -->
+      </section>
+    }
+
+    <section class="card">
+      <div class="card-head">
+        <h3>Next in queue</h3>
+        <button type="button" class="link" (click)="panel.open('queue')">Open queue</button>
+      </div>
+      @if (nextUp(); as next) {
+        <app-track-row [track]="next" [index]="player.index() + 1" />
+      } @else {
+        <p class="muted">Nothing queued.</p>
+      }
+    </section>
+
+    @if (moreByArtist().length) {
+      <section class="card">
+        <h3>More by {{ track.artistName }}</h3>
+        @for (t of moreByArtist(); track t.id; let i = $index) {
+          <app-track-row [track]="t" [index]="i" [showAlbumArtist]="false" (play)="playMore(i)" />
+        }
+      </section>
+    }
+  </div>
+} @else {
+  <p class="placeholder">Play something to see it here</p>
+}

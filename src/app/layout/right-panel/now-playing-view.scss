@@ -1,0 +1,137 @@
+@use 'ui';
+
+:host {
+  display: block;
+}
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 16px 24px;
+}
+
+.art {
+  border-radius: var(--radius-m);
+}
+
+.title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.artist-link {
+  color: var(--text-muted);
+  &:hover {
+    color: var(--text);
+    text-decoration: underline;
+  }
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 12px;
+}
+
+.card {
+  padding: 12px;
+  border-radius: var(--radius-m);
+  background: var(--surface-2);
+
+  h3 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+}
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.link {
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  &:hover {
+    color: var(--text);
+    text-decoration: underline;
+  }
+}
+
+.about-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  width: 56px;
+  flex: 0 0 56px;
+}
+
+.about-name {
+  display: block;
+  font-weight: 700;
+}
+
+.about-followers {
+  display: block;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.verified {
+  color: var(--accent);
+}
+
+.bio {
+  margin: 10px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.follow {
+  @include ui.follow-button;
+}
+
+.muted,
+.placeholder {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.placeholder {
+  padding: 24px 16px;
+}

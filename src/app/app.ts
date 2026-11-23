@@ -4,6 +4,8 @@ import { Navbar } from './layout/navbar/navbar';
 import { TabBar } from './layout/tab-bar/tab-bar';
 import { LibrarySidebar } from './layout/library-sidebar/library-sidebar';
 import { PlayerBar } from './layout/player-bar/player-bar';
+import { RightPanel } from './layout/right-panel/right-panel';
+import { QueueView } from './layout/right-panel/queue-view';
 import { MiniPlayer } from './layout/mini-player/mini-player';
 import { NowPlayingSheet } from './layout/now-playing-sheet/now-playing-sheet';
 import { Toast } from './shared/toast/toast';
@@ -15,7 +17,7 @@ import { PanelStateService } from './state/panel-state.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Navbar, TabBar, LibrarySidebar, PlayerBar, MiniPlayer, NowPlayingSheet, Toast, TrackMenu],
+  imports: [RouterOutlet, Navbar, TabBar, LibrarySidebar, PlayerBar, MiniPlayer, NowPlayingSheet, Toast, TrackMenu, RightPanel, QueueView],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -27,6 +29,8 @@ export class App {
 
   /** Phone: full-screen player open. */
   protected readonly sheetOpen = signal(false);
+  /** Phone: full-screen queue. */
+  protected readonly queueOpen = signal(false);
 
   constructor() {
     effect(() => {
@@ -35,7 +39,10 @@ export class App {
     });
     effect(() => {
       // The sheet only exists on phones.
-      if (this.layout.mode() !== 'phone') this.sheetOpen.set(false);
+      if (this.layout.mode() !== 'phone') {
+        this.sheetOpen.set(false);
+        this.queueOpen.set(false);
+      }
     });
   }
 }
