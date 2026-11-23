@@ -16,8 +16,8 @@ export const routes: Routes = [
   { path: 'track/:id', loadComponent: () => import('./pages/track/track').then((m) => m.TrackPage) },
   { path: 'artist/:id', loadComponent: () => import('./pages/artist/artist').then((m) => m.ArtistPage) },
   { path: 'playlist/:id', loadComponent: () => import('./pages/playlist/playlist').then((m) => m.PlaylistPage) },
-  { path: 'my-playlist/:id', component: EmptyPage },
-  { path: 'library', component: EmptyPage },
+  { path: 'my-playlist/:id', loadComponent: () => import('./pages/my-playlist/my-playlist').then((m) => m.MyPlaylistPage) },
+  { path: 'library', loadComponent: () => import('./pages/library/library').then((m) => m.LibraryPage) },
   { path: 'lyrics', component: EmptyPage },
   { path: '**', redirectTo: 'home' },
 ];

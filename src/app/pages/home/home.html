@@ -12,8 +12,14 @@
     }
   </div>
 
-  @if (quickPlay().length) {
+  @if (quickPlay().length || hasLiked()) {
     <div class="quick">
+      @if (hasLiked()) {
+        <a class="tile liked-tile" routerLink="/library" [queryParams]="{ view: 'liked' }">
+          <span class="tile-art liked-art"><i class="fa-solid fa-heart" aria-hidden="true"></i></span>
+          <span class="tile-name">Liked songs</span>
+        </a>
+      }
       @for (track of quickPlay(); track track.id; let i = $index) {
         <button type="button" class="tile" (click)="playFrom(quickPlay(), i)" [attr.aria-label]="'Play ' + track.title">
           <app-cover class="tile-art" [src]="track.artwork.small" [seed]="track.id" />

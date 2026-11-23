@@ -71,6 +71,13 @@
   border-radius: 0;
 }
 
+.liked-art {
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  background: linear-gradient(135deg, var(--liked-a), var(--liked-b));
+}
+
 .tile-name {
   @include ui.truncate;
   flex: 1;

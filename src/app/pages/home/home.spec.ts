@@ -95,9 +95,22 @@ describe('HomePage', () => {
     expect(shelf('Recently played')!.querySelectorAll('app-media-card').length).toBe(1);
   });
 
-  it('quick-play grid shows the first 6 trending tracks', () => {
+  it('quick-play grid shows the first trending tracks', () => {
+    localStorage.clear();
     const { el } = setup();
     expect(el.querySelectorAll('.quick button').length).toBe(3);
+  });
+
+  it('shows a Liked songs tile only when there are liked songs', () => {
+    localStorage.clear();
+    let s = setup();
+    expect(s.el.querySelector('.quick a.liked-tile')).toBeNull();
+    TestBed.resetTestingModule();
+    localStorage.setItem('library.liked', JSON.stringify([makeTrack('l1')]));
+    s = setup();
+    const tile = s.el.querySelector('.quick a.liked-tile') as HTMLAnchorElement;
+    expect(tile.getAttribute('href')).toBe('/library?view=liked');
+    localStorage.clear();
   });
 
   it('FUN_FACTS has no duplicates', () => {

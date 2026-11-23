@@ -1,0 +1,51 @@
+@if (isEmpty()) {
+  @if (!compact()) {
+    <div class="empty">
+      <p class="empty-title">Create your first playlist</p>
+      <p class="empty-text">It's easy, we'll help you.</p>
+      <ng-content select="[empty-action]" />
+      <a routerLink="/search" class="find">Find something to play</a>
+    </div>
+  }
+} @else {
+  @if (!compact()) {
+    <div class="chips" role="group" aria-label="Filter your library">
+      @for (f of filters; track f) {
+        <button type="button" [class.active]="filter() === f" [attr.aria-pressed]="filter() === f" (click)="selectFilter(f)">
+          {{ f }}
+        </button>
+      }
+    </div>
+  }
+
+  <ul class="items" [class.compact]="compact()">
+    @for (item of items(); track item.key) {
+      <li>
+        <a
+          class="item"
+          [routerLink]="item.link"
+          [queryParams]="item.queryParams"
+          routerLinkActive="active"
+          [attr.aria-label]="compact() ? item.title : null"
+          [attr.title]="compact() ? item.title : null"
+        >
+          @if (item.kind === 'liked') {
+            <span class="liked-cover" [style.background]="likedGradient">
+              <i class="fa-solid fa-heart" aria-hidden="true"></i>
+            </span>
+          } @else {
+            <app-cover class="cover" [src]="item.image" [seed]="item.seed" [round]="item.round" />
+          }
+          @if (!compact()) {
+            <span class="text">
+              <span class="item-title">{{ item.title }}</span>
+              <span class="item-sub">{{ item.subtitle }}</span>
+            </span>
+          }
+        </a>
+      </li>
+    } @empty {
+      <li class="none">Nothing here yet.</li>
+    }
+  </ul>
+}

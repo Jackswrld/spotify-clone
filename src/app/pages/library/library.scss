@@ -1,0 +1,66 @@
+@use 'ui';
+
+.library {
+  padding: 24px 16px 48px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+
+  h1 {
+    font-size: 24px;
+    font-weight: 700;
+  }
+}
+
+.create {
+  @include ui.pill;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+}
+
+.liked-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin: -24px -16px 16px;
+  padding: 48px 16px 24px;
+  background: linear-gradient(180deg, var(--liked-a), var(--surface-1));
+
+  h1 {
+    font-size: clamp(28px, 5vw, 56px);
+    font-weight: 800;
+  }
+}
+
+.back {
+  @include ui.icon-button(var(--tap));
+  color: var(--text);
+}
+
+.kind,
+.count {
+  font-size: 13px;
+}
+
+.play {
+  @include ui.icon-button(56px);
+  margin: 8px 0 16px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 20px;
+  &:hover:not(:disabled) {
+    background: var(--accent-hover);
+    color: var(--on-accent);
+  }
+}
+
+.empty {
+  padding: 32px 0;
+  color: var(--text-muted);
+}

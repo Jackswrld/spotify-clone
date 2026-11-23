@@ -1,0 +1,67 @@
+<div class="page">
+  @if (playlist(); as p) {
+    <header class="header" [style.background]="'linear-gradient(180deg, ' + headerColor() + ' 0%, var(--surface-1) 100%)'">
+      <app-cover class="header-art" [src]="p.tracks[0]?.artwork?.medium ?? null" [seed]="p.id" [alt]="p.name" />
+      <div class="header-text">
+        <span class="kind">Playlist</span>
+        @if (editing()) {
+          <label class="visually-hidden" for="playlist-name">Playlist name</label>
+          <input
+            #nameInput
+            id="playlist-name"
+            class="name-input"
+            maxlength="100"
+            [value]="p.name"
+            (keydown)="onNameKey($event)"
+            (blur)="saveName(nameInput.value)"
+          />
+        } @else {
+          <h1>
+            <button type="button" class="name" title="Rename" (click)="startEditing()">{{ p.name }}</button>
+          </h1>
+        }
+        <p class="stats-line">
+          <span>{{ p.tracks.length }} {{ p.tracks.length === 1 ? 'song' : 'songs' }}</span>
+          @if (p.tracks.length) {
+            <span class="dot">{{ totalTime() }}</span>
+          }
+        </p>
+      </div>
+    </header>
+
+    <div class="actions">
+      <button type="button" class="big-play" aria-label="Play" [disabled]="!p.tracks.length" (click)="play()">
+        <i class="fa-solid fa-play" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="action" aria-label="Shuffle play" [disabled]="!p.tracks.length" (click)="shufflePlay()">
+        <i class="fa-solid fa-shuffle" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="action delete" [attr.aria-label]="'Delete ' + p.name" (click)="remove()">
+        <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+      </button>
+    </div>
+
+    <div class="body">
+      @if (p.tracks.length) {
+        <div cdkDropList class="list" (cdkDropListDropped)="drop($event)">
+          @for (t of p.tracks; track t.id; let i = $index) {
+            <div class="drag-row" cdkDrag cdkDragLockAxis="y">
+              <span class="handle" cdkDragHandle aria-hidden="true"><i class="fa-solid fa-grip-vertical"></i></span>
+              <app-track-row class="row" [track]="t" [index]="i" [extraMenuItems]="menuExtras(i)" (play)="play(i)" />
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty">
+          <p>Search for songs to add</p>
+          <a routerLink="/search" class="find">Go to Search</a>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="empty">
+      <p>Playlist not found</p>
+      <a routerLink="/library" class="find">Back to Your Library</a>
+    </div>
+  }
+</div>

@@ -2,7 +2,7 @@ import { Component, effect, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Navbar } from './layout/navbar/navbar';
 import { TabBar } from './layout/tab-bar/tab-bar';
-import { Library } from './library/library';
+import { LibrarySidebar } from './layout/library-sidebar/library-sidebar';
 import { PlayerBar } from './layout/player-bar/player-bar';
 import { MiniPlayer } from './layout/mini-player/mini-player';
 import { NowPlayingSheet } from './layout/now-playing-sheet/now-playing-sheet';
@@ -15,7 +15,7 @@ import { PanelStateService } from './state/panel-state.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Navbar, TabBar, Library, PlayerBar, MiniPlayer, NowPlayingSheet, Toast, TrackMenu],
+  imports: [RouterOutlet, Navbar, TabBar, LibrarySidebar, PlayerBar, MiniPlayer, NowPlayingSheet, Toast, TrackMenu],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
