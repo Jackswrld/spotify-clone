@@ -1,0 +1,157 @@
+// Tinted header shared by track, artist and playlist pages. Use with: @use 'page-header';
+@use 'ui';
+
+@mixin styles {
+  .page {
+    min-height: 100%;
+    padding-bottom: 48px;
+  }
+
+  .header {
+    display: flex;
+    align-items: flex-end;
+    gap: 24px;
+    padding: 64px 24px 24px;
+    transition: background 0.4s;
+  }
+
+  .header-art {
+    width: 220px;
+    flex: 0 0 220px;
+    box-shadow: 0 8px 40px var(--scrim);
+  }
+
+  .header-text {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .kind {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  h1 {
+    font-size: clamp(28px, 5vw, 72px);
+    font-weight: 800;
+    line-height: 1.05;
+    overflow-wrap: anywhere;
+  }
+
+  .stats-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+
+    a {
+      font-weight: 700;
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .dot::before {
+    content: '•';
+    color: var(--text-muted);
+  }
+
+  .verified {
+    color: var(--accent);
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 24px;
+  }
+
+  .big-play {
+    @include ui.icon-button(56px);
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 22px;
+    &:hover:not(:disabled) {
+      background: var(--accent-hover);
+      color: var(--on-accent);
+      transform: scale(1.04);
+    }
+  }
+
+  .action {
+    @include ui.icon-button(40px);
+    font-size: 20px;
+  }
+
+  .follow {
+    @include ui.follow-button;
+  }
+
+  .external {
+    font-size: 13px;
+    color: var(--text-muted);
+    &:hover {
+      color: var(--text);
+      text-decoration: underline;
+    }
+  }
+
+  .body {
+    padding: 0 24px;
+  }
+
+  .section {
+    margin-bottom: 32px;
+
+    > h2 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+  }
+
+  .pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pill {
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    font-size: 13px;
+  }
+
+  .prose {
+    max-width: 70ch;
+    color: var(--text-muted);
+    line-height: 1.6;
+    white-space: pre-line;
+  }
+
+  @include ui.phone {
+    .header {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 24px 16px 16px;
+    }
+
+    .header-art {
+      width: min(60vw, 240px);
+      flex-basis: auto;
+      align-self: center;
+    }
+
+    .actions,
+    .body {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+  }
+}

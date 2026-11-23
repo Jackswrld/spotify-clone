@@ -1,0 +1,66 @@
+@let state = playlist.state();
+<div class="page">
+  @switch (state.status) {
+    @case ('loading') {
+      <div class="header"><app-skeleton shape="text" [count]="3" /></div>
+    }
+    @case ('error') {
+      <app-error-state message="Couldn't load this playlist." (retry)="playlist.retry(); tracks.retry()" />
+    }
+    @case ('ready') {
+      @let p = state.data;
+      @let list = tracks.state().data ?? [];
+      <header class="header" [style.background]="'linear-gradient(180deg, ' + headerColor() + ' 0%, var(--surface-1) 100%)'">
+        <app-cover class="header-art" [src]="p.artwork.medium" [seed]="p.id" [alt]="p.name" />
+        <div class="header-text">
+          <span class="kind">{{ p.isAlbum ? 'Album' : 'Playlist' }}</span>
+          <h1>{{ p.name }}</h1>
+          @if (p.description) {
+            <p class="prose">{{ p.description }}</p>
+          }
+          <p class="stats-line">
+            <a [routerLink]="['/artist', p.ownerId]">{{ p.ownerName }}</a>
+            <span class="dot">{{ list.length || p.trackCount }} songs</span>
+          </p>
+        </div>
+      </header>
+
+      <div class="actions">
+        <button type="button" class="big-play" aria-label="Play" [disabled]="!list.length" (click)="play()">
+          <i class="fa-solid fa-play" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="action shuffle-play" aria-label="Shuffle play" [disabled]="!list.length" (click)="shufflePlay()">
+          <i class="fa-solid fa-shuffle" aria-hidden="true"></i>
+        </button>
+        <button
+          type="button"
+          class="action save"
+          [attr.aria-pressed]="saved()"
+          [attr.aria-label]="saved() ? 'Remove from Your Library' : 'Save to Your Library'"
+          (click)="toggleSave()"
+        >
+          <i [class]="saved() ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-plus'" aria-hidden="true"></i>
+        </button>
+        <a class="external" [href]="'https://audius.co' + p.permalink" target="_blank" rel="noopener">Open on Audius</a>
+      </div>
+
+      <div class="body">
+        @switch (tracks.state().status) {
+          @case ('loading') {
+            <app-skeleton shape="row" [count]="6" />
+          }
+          @case ('error') {
+            <app-error-state message="Couldn't load the songs." (retry)="tracks.retry()" />
+          }
+          @default {
+            @for (t of list; track t.id; let i = $index) {
+              <app-track-row [track]="t" [index]="i" (play)="play(i)" />
+            } @empty {
+              <p class="prose">No playable songs in this playlist.</p>
+            }
+          }
+        }
+      </div>
+    }
+  }
+</div>

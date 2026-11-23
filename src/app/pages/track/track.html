@@ -1,0 +1,110 @@
+@let state = track.state();
+<div class="page">
+  @switch (state.status) {
+    @case ('loading') {
+      <div class="header"><app-skeleton shape="text" [count]="3" /></div>
+    }
+    @case ('error') {
+      <app-error-state message="This track isn't available." [showRetry]="false">
+        <a routerLink="/home" class="home-link">Go home</a>
+      </app-error-state>
+    }
+    @case ('ready') {
+      @let t = state.data;
+      <header class="header" [style.background]="'linear-gradient(180deg, ' + headerColor() + ' 0%, var(--surface-1) 100%)'">
+        <app-cover class="header-art" [src]="t.artwork.medium" [seed]="t.id" [alt]="t.title" />
+        <div class="header-text">
+          <span class="kind">Song</span>
+          <h1>{{ t.title }}</h1>
+          <p class="stats-line">
+            <a [routerLink]="['/artist', t.artistId]">{{ t.artistName }}</a>
+            <span class="dot">{{ formatCount(t.playCount) }} plays</span>
+            @if (year(t.releaseDate); as y) {
+              <span class="dot">{{ y }}</span>
+            }
+            <span class="dot">{{ formatTime(t.duration) }}</span>
+          </p>
+        </div>
+      </header>
+
+      <div class="actions">
+        <button type="button" class="big-play" [attr.aria-label]="isPlayingThis() ? 'Pause' : 'Play'" (click)="playOrPause()">
+          <i class="fa-solid" [class.fa-pause]="isPlayingThis()" [class.fa-play]="!isPlayingThis()" aria-hidden="true"></i>
+        </button>
+        <app-like-button class="action-like" [track]="t" />
+        <button
+          type="button"
+          class="action"
+          [attr.aria-label]="'More options for ' + t.title"
+          (click)="trackMenu.open(t, $any($event.currentTarget))"
+        >
+          <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+        </button>
+        <a class="external" [href]="'https://audius.co' + t.permalink" target="_blank" rel="noopener">Open on Audius</a>
+      </div>
+
+      <div class="body">
+        @if (t.genre || t.mood || t.tags.length) {
+          <section class="section" aria-label="Tags">
+            <div class="pills">
+              @if (t.genre) {
+                <span class="pill">{{ t.genre }}</span>
+              }
+              @if (t.mood) {
+                <span class="pill">{{ t.mood }}</span>
+              }
+              @for (tag of t.tags; track tag) {
+                <span class="pill">#{{ tag }}</span>
+              }
+            </div>
+          </section>
+        }
+
+        @if (t.description) {
+          <section class="section">
+            <h2>About this song</h2>
+            <p class="prose">{{ t.description }}</p>
+          </section>
+        }
+
+        <section class="section stats" aria-label="Stats">
+          <span><strong>{{ formatCount(t.likeCount) }}</strong> likes</span>
+          <span><strong>{{ formatCount(t.repostCount) }}</strong> reposts</span>
+        </section>
+
+        <!-- lyrics-slot -->
+
+        @if (artist.state().data; as a) {
+          <section class="section">
+            <h2>About the artist</h2>
+            <a class="artist-card" [routerLink]="['/artist', a.id]">
+              <app-cover class="artist-avatar" [src]="a.avatar.medium" [seed]="a.id" [round]="true" />
+              <div>
+                <p class="artist-name">
+                  {{ a.name }}
+                  @if (a.verified) {
+                    <i class="fa-solid fa-circle-check verified" aria-label="Verified"></i>
+                  }
+                </p>
+                <p class="artist-followers">{{ formatCount(a.followerCount) }} followers</p>
+                @if (a.bio) {
+                  <p class="prose clamp">{{ a.bio }}</p>
+                }
+              </div>
+            </a>
+            <!-- lastfm-slot -->
+          </section>
+        }
+
+        @if (moreByArtist().length) {
+          <section class="section more">
+            <h2>More by {{ t.artistName }}</h2>
+            @for (m of moreByArtist(); track m.id; let i = $index) {
+              <app-track-row [track]="m" [index]="i" (play)="playMore(i)" />
+            }
+          </section>
+        }
+      </div>
+    }
+  }
+</div>

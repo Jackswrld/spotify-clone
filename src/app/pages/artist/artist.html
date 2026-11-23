@@ -1,0 +1,77 @@
+@let state = artist.state();
+<div class="page">
+  @switch (state.status) {
+    @case ('loading') {
+      <div class="header"><app-skeleton shape="text" [count]="3" /></div>
+    }
+    @case ('error') {
+      <app-error-state message="Couldn't load this artist." (retry)="artist.retry()" />
+    }
+    @case ('ready') {
+      @let a = state.data;
+      <header
+        class="header"
+        [style.background]="
+          a.coverPhoto
+            ? 'linear-gradient(180deg, transparent, var(--surface-1)), url(' + a.coverPhoto + ') center / cover'
+            : 'linear-gradient(180deg, ' + headerColor() + ' 0%, var(--surface-1) 100%)'
+        "
+      >
+        <app-cover class="header-art" [src]="a.avatar.medium" [seed]="a.id" [round]="true" [alt]="a.name" />
+        <div class="header-text">
+          @if (a.verified) {
+            <span class="kind"><i class="fa-solid fa-circle-check verified" aria-hidden="true"></i> Verified artist</span>
+          } @else {
+            <span class="kind">Artist</span>
+          }
+          <h1>{{ a.name }}</h1>
+          <p class="stats-line">{{ formatCount(a.followerCount) }} followers</p>
+        </div>
+      </header>
+
+      <div class="actions">
+        <button type="button" class="big-play" aria-label="Play" (click)="playPopular()">
+          <i class="fa-solid fa-play" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="follow" [attr.aria-pressed]="following()" (click)="toggleFollow()">
+          {{ following() ? 'Following' : 'Follow' }}
+        </button>
+        <a class="external" [href]="'https://audius.co' + a.permalink" target="_blank" rel="noopener">Open on Audius</a>
+      </div>
+
+      <div class="body">
+        @if (popular.state().data?.length) {
+          <section class="section popular">
+            <h2>Popular</h2>
+            @for (t of popular.state().data ?? []; track t.id; let i = $index) {
+              <app-track-row [track]="t" [index]="i" [showAlbumArtist]="false" (play)="playPopular(i)" />
+            }
+          </section>
+        }
+
+        @let playlistState = playlists.state();
+        <app-shelf title="Playlists" [count]="playlistState.data?.length ?? 0">
+          @for (p of playlistState.data ?? []; track p.id) {
+            <app-media-card
+              [title]="p.name"
+              [subtitle]="p.isAlbum ? 'Album' : 'Playlist'"
+              [image]="p.artwork.medium"
+              [seed]="p.id"
+              [link]="['/playlist', p.id]"
+              (play)="playPlaylist(p)"
+            />
+          }
+        </app-shelf>
+
+        @if (a.bio) {
+          <section class="section">
+            <h2>About</h2>
+            <p class="prose">{{ a.bio }}</p>
+          </section>
+        }
+
+        <!-- lastfm-slot -->
+      </div>
+    }
+  }
+</div>

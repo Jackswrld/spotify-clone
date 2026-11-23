@@ -1,5 +1,4 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { AudiusApi } from '../../core/api/audius-api';
 import { Playlist, Track } from '../../core/models';
 import { PlayerService } from '../../state/player.service';
@@ -33,7 +32,7 @@ const LOAD_ERROR = "Couldn't load this right now.";
 
 @Component({
   selector: 'app-home-page',
-  imports: [RouterLink, Shelf, MediaCard, Cover],
+  imports: [Shelf, MediaCard, Cover],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })

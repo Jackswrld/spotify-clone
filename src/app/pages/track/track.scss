@@ -1,0 +1,60 @@
+@use 'page-header';
+
+@include page-header.styles;
+
+.action-like {
+  --size: 40px;
+  font-size: 20px;
+}
+
+.stats {
+  display: flex;
+  gap: 24px;
+  color: var(--text-muted);
+
+  strong {
+    color: var(--text);
+  }
+}
+
+.artist-card {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  max-width: 640px;
+  padding: 16px;
+  border-radius: var(--radius-m);
+  background: var(--hover);
+
+  &:hover {
+    background: var(--surface-2);
+  }
+}
+
+.artist-avatar {
+  width: 80px;
+  flex: 0 0 80px;
+}
+
+.artist-name {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.artist-followers {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.home-link {
+  text-decoration: underline;
+}
