@@ -14,7 +14,7 @@ import { formatTime } from '../../shared/utils/format';
   imports: [RouterLink, Cover, LikeButton, NowPlayingView],
   templateUrl: './now-playing-sheet.html',
   styleUrl: './now-playing-sheet.scss',
-  host: { '(document:keydown.escape)': 'open() && close.emit()' },
+  host: { '(document:keydown.escape)': 'onEscape()' },
 })
 export class NowPlayingSheet {
   protected readonly player = inject(PlayerService);
@@ -45,6 +45,11 @@ export class NowPlayingSheet {
   protected onSeekChange(event: Event): void {
     this.player.seek(Number((event.target as HTMLInputElement).value));
     this.dragValue.set(null);
+  }
+
+  /** Escape closes the topmost layer only: an open track menu handles it first. */
+  protected onEscape(): void {
+    if (this.open() && !this.trackMenu.state()) this.close.emit();
   }
 
   protected async share(): Promise<void> {

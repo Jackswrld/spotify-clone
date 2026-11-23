@@ -77,6 +77,7 @@
 }
 
 .link {
+  min-height: 24px;
   border: 0;
   background: none;
   color: var(--text-muted);
@@ -134,6 +135,13 @@
 
   &.active {
     color: var(--text);
+  }
+}
+
+@include ui.phone {
+  .link {
+    min-height: var(--tap);
+    padding: 0 4px;
   }
 }
 

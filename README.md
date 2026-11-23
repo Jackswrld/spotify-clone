@@ -1,60 +1,64 @@
-# SpotifyClone
+# Music
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.6.
+A music streaming web app with a Spotify-inspired layout, built with Angular 20. It plays
+full-length songs from the open [Audius](https://audius.co) catalog in the browser, with no
+login needed.
 
-## Development server
+## Features
 
-To start a local development server, run:
+- **Full-song playback** from Audius: queue, shuffle, repeat, seek, volume, and lock-screen and
+  media-key controls (Media Session API).
+- **Home** with trending songs (filter by genre), trending playlists, underground picks and
+  recently played.
+- **Search** with genre and mood tiles, a top result, and grouped songs, artists and playlists.
+- **Song, artist and playlist pages** with real data. Headers are tinted with colour from the
+  artwork.
+- **Synced lyrics** from LRCLIB. Click a line to jump to it.
+- **Artist bios and "Fans also like"** from Last.fm (optional key). These only appear for
+  verified artists whose name matches exactly.
+- **Your Library**: liked songs, saved playlists and artists, and your own playlists (create,
+  rename, reorder, delete). Saved in this browser.
+- **Works on phones**: bottom tabs, a mini player and a full-screen Now playing view.
+- **Keyboard shortcuts**: Space play/pause · ←/→ seek 5 s · Shift+←/→ previous/next ·
+  M mute · `/` search.
 
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
+## Getting started
 
 ```bash
-ng build
+npm install
+cp src/environments/environment.local.example.ts src/environments/environment.local.ts
+npm start
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Then open the URL that `ng serve` prints (by default `http://localhost:4200/`).
 
-## Running unit tests
+`environment.local.ts` is git-ignored and used by the development build. To show artist bios
+and similar artists, add a free Last.fm API key there as `lastFmApiKey` (create one at
+https://www.last.fm/api/account/create). Without a key those sections stay hidden.
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+## Scripts
 
-```bash
-ng test
-```
+| Command | What it does |
+|---|---|
+| `npm start` | Dev server with live reload |
+| `npm test` | Unit tests (Karma + Jasmine). Use `npx ng test --watch=false --browsers=ChromeHeadless` for a single run |
+| `npm run build` | Production build to `dist/` |
 
-## Running end-to-end tests
+## How it's put together
 
-For end-to-end (e2e) testing, run:
+- `src/app/core`: config, models, and API clients (Audius, LRCLIB, Last.fm) that turn each
+  API's response into the app's own `Track`, `Artist` and `Playlist` types, plus an in-memory
+  HTTP cache.
+- `src/app/state`: signal-based services: `PlayerService` (the single audio element and the
+  queue), `LibraryService`, `LyricsService`, layout, panel, toast and shortcuts.
+- `src/app/layout`: the app shell (navbar, sidebar, player bar, mini player, right panel and
+  tab bar).
+- `src/app/pages`: routed pages.
+- `src/app/shared`: reusable components and utilities.
+- Design docs: `docs/superpowers/specs/` and `docs/superpowers/plans/`.
 
-```bash
-ng e2e
-```
+## Credits
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
-# spotify-clone
+Music and artist data from [Audius](https://audius.co). Lyrics from [LRCLIB](https://lrclib.net).
+Artist bios from [Last.fm](https://www.last.fm). This is a non-commercial hobby project and is
+not affiliated with Spotify.

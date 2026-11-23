@@ -1,13 +1,4 @@
-import { Component } from '@angular/core';
 import { Routes } from '@angular/router';
-
-/** Placeholder for routes whose pages land in later tasks. */
-@Component({
-  selector: 'app-empty-page',
-  template: `<p class="empty">Coming soon.</p>`,
-  styles: `.empty { padding: 24px; color: var(--text-muted); }`,
-})
-export class EmptyPage {}
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'home' },
