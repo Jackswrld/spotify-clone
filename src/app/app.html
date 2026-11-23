@@ -18,13 +18,21 @@
   }
 
   @if (layout.mode() === 'phone') {
-    <div class="shell-mini"></div>
+    <div class="shell-mini">
+      <app-mini-player (open)="sheetOpen.set(true)" />
+    </div>
     <footer class="shell-tabbar">
       <app-tab-bar />
     </footer>
   } @else {
     <footer class="shell-player">
-      <app-now-playing-bar />
+      <app-player-bar />
     </footer>
   }
+
+  <app-toast />
 </div>
+
+@if (layout.mode() === 'phone') {
+  <app-now-playing-sheet [open]="sheetOpen()" (close)="sheetOpen.set(false)" (openQueue)="sheetOpen.set(false)" />
+}

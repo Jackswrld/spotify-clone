@@ -1,0 +1,91 @@
+@if (open() && player.current(); as track) {
+  <section
+    class="sheet"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Now playing"
+    [style.background]="'linear-gradient(180deg, ' + color() + ' 0%, var(--bg) 85%)'"
+  >
+    <header class="top">
+      <button type="button" class="icon" aria-label="Close player" (click)="close.emit()">
+        <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+      </button>
+      <span class="context">Now playing</span>
+      <span class="spacer"></span>
+    </header>
+
+    <app-cover class="art" [src]="track.artwork.large ?? track.artwork.medium" [seed]="track.id" [alt]="track.title" />
+
+    <div class="info">
+      <div class="meta">
+        <a class="title" [routerLink]="['/track', track.id]" (click)="close.emit()">{{ track.title }}</a>
+        <a class="artist" [routerLink]="['/artist', track.artistId]" (click)="close.emit()">{{ track.artistName }}</a>
+      </div>
+      <!-- like-slot: wired in Task 9 -->
+    </div>
+
+    <div class="seek">
+      <input
+        type="range"
+        class="slider"
+        aria-label="Seek"
+        min="0"
+        [max]="player.duration() || 1"
+        step="1"
+        [value]="shownTime()"
+        [style.--pct.%]="progressPct()"
+        (input)="onSeekInput($event)"
+        (change)="onSeekChange($event)"
+      />
+      <div class="times">
+        <span>{{ formatTime(shownTime()) }}</span>
+        <span>-{{ formatTime(player.duration() - shownTime()) }}</span>
+      </div>
+    </div>
+
+    <div class="transport">
+      <button type="button" class="icon" aria-label="Shuffle" [attr.aria-pressed]="player.shuffle()" (click)="player.toggleShuffle()">
+        <i class="fa-solid fa-shuffle" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="icon big" aria-label="Previous" (click)="player.previous()">
+        <i class="fa-solid fa-backward-step" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="play" [attr.aria-label]="player.isPlaying() ? 'Pause' : 'Play'" (click)="player.toggle()">
+        @if (player.isBuffering()) {
+          <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+        } @else {
+          <i class="fa-solid" [class.fa-pause]="player.isPlaying()" [class.fa-play]="!player.isPlaying()" aria-hidden="true"></i>
+        }
+      </button>
+      <button type="button" class="icon big" aria-label="Next" (click)="player.next()">
+        <i class="fa-solid fa-forward-step" aria-hidden="true"></i>
+      </button>
+      <button
+        type="button"
+        class="icon"
+        [attr.aria-label]="repeatLabel()"
+        [attr.aria-pressed]="player.repeat() !== 'off'"
+        (click)="player.cycleRepeat()"
+      >
+        <i class="fa-solid fa-repeat" aria-hidden="true"></i>
+        @if (player.repeat() === 'one') {
+          <span class="badge" aria-hidden="true">1</span>
+        }
+      </button>
+    </div>
+
+    <div class="secondary">
+      <a class="icon" routerLink="/lyrics" aria-label="Lyrics" (click)="close.emit()">
+        <i class="fa-solid fa-microphone-lines" aria-hidden="true"></i>
+      </a>
+      <button type="button" class="icon" aria-label="Queue" (click)="openQueue.emit()">
+        <i class="fa-solid fa-list" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="icon" aria-label="Share" (click)="share()">
+        <i class="fa-solid fa-arrow-up-from-bracket" aria-hidden="true"></i>
+      </button>
+    </div>
+
+    <!-- sections-slot: now-playing sections (Task 12) -->
+  </section>
+}

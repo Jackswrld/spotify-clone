@@ -1,19 +1,40 @@
-import { Component, inject } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { Navbar } from './layout/navbar/navbar';
 import { TabBar } from './layout/tab-bar/tab-bar';
 import { Library } from './library/library';
-import { NowPlayingBarComponent } from './components/now-playing-bar/now-playing-bar';
+import { PlayerBar } from './layout/player-bar/player-bar';
+import { MiniPlayer } from './layout/mini-player/mini-player';
+import { NowPlayingSheet } from './layout/now-playing-sheet/now-playing-sheet';
+import { Toast } from './shared/toast/toast';
+import { PlayerService } from './state/player.service';
+import { ToastService } from './state/toast.service';
 import { LayoutService } from './state/layout.service';
 import { PanelStateService } from './state/panel-state.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Navbar, TabBar, Library, NowPlayingBarComponent],
+  imports: [RouterOutlet, Navbar, TabBar, Library, PlayerBar, MiniPlayer, NowPlayingSheet, Toast],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
 export class App {
   protected readonly layout = inject(LayoutService);
   protected readonly panel = inject(PanelStateService);
+  private readonly player = inject(PlayerService);
+  private readonly toast = inject(ToastService);
+
+  /** Phone: full-screen player open. */
+  protected readonly sheetOpen = signal(false);
+
+  constructor() {
+    effect(() => {
+      const message = this.player.error();
+      if (message) this.toast.show(message);
+    });
+    effect(() => {
+      // The sheet only exists on phones.
+      if (this.layout.mode() !== 'phone') this.sheetOpen.set(false);
+    });
+  }
 }

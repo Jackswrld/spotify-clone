@@ -1,0 +1,114 @@
+@if (player.current(); as track) {
+  <div class="bar">
+    <div class="now">
+      <app-cover class="art" [src]="track.artwork.small" [seed]="track.id" [alt]="''" />
+      <div class="meta">
+        <a class="title" [routerLink]="['/track', track.id]">{{ track.title }}</a>
+        <a class="artist" [routerLink]="['/artist', track.artistId]">{{ track.artistName }}</a>
+      </div>
+      <!-- like-slot: wired in Task 9 -->
+    </div>
+
+    <div class="controls">
+      <div class="buttons">
+        <button
+          type="button"
+          class="icon"
+          [attr.aria-pressed]="player.shuffle()"
+          aria-label="Shuffle"
+          (click)="player.toggleShuffle()"
+        >
+          <i class="fa-solid fa-shuffle" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="icon" aria-label="Previous" (click)="player.previous()">
+          <i class="fa-solid fa-backward-step" aria-hidden="true"></i>
+        </button>
+        <button
+          type="button"
+          class="play"
+          [attr.aria-label]="player.isPlaying() ? 'Pause' : 'Play'"
+          (click)="player.toggle()"
+        >
+          @if (player.isBuffering()) {
+            <i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>
+          } @else {
+            <i class="fa-solid" [class.fa-pause]="player.isPlaying()" [class.fa-play]="!player.isPlaying()" aria-hidden="true"></i>
+          }
+        </button>
+        <button type="button" class="icon" aria-label="Next" (click)="player.next()">
+          <i class="fa-solid fa-forward-step" aria-hidden="true"></i>
+        </button>
+        <button
+          type="button"
+          class="icon repeat"
+          [attr.aria-pressed]="player.repeat() !== 'off'"
+          [attr.aria-label]="repeatLabel()"
+          (click)="player.cycleRepeat()"
+        >
+          <i class="fa-solid fa-repeat" aria-hidden="true"></i>
+          @if (player.repeat() === 'one') {
+            <span class="badge" aria-hidden="true">1</span>
+          }
+        </button>
+      </div>
+
+      <div class="seek">
+        <span class="time">{{ formatTime(shownTime()) }}</span>
+        <input
+          type="range"
+          class="slider"
+          aria-label="Seek"
+          min="0"
+          [max]="player.duration() || 1"
+          step="1"
+          [value]="shownTime()"
+          [style.--pct.%]="progressPct()"
+          (input)="onSeekInput($event)"
+          (change)="onSeekChange($event)"
+        />
+        <span class="time">-{{ remaining() }}</span>
+      </div>
+    </div>
+
+    <div class="extras">
+      <a class="icon" routerLink="/lyrics" aria-label="Lyrics">
+        <i class="fa-solid fa-microphone-lines" aria-hidden="true"></i>
+      </a>
+      <button
+        type="button"
+        class="icon"
+        aria-label="Queue"
+        [attr.aria-pressed]="panel.view() === 'queue'"
+        (click)="panel.toggle('queue')"
+      >
+        <i class="fa-solid fa-list" aria-hidden="true"></i>
+      </button>
+      <button
+        type="button"
+        class="icon"
+        aria-label="Now playing view"
+        [attr.aria-pressed]="panel.view() === 'now-playing'"
+        (click)="panel.toggle('now-playing')"
+      >
+        <i class="fa-solid fa-table-columns" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="icon" [attr.aria-label]="player.muted() ? 'Unmute' : 'Mute'" (click)="player.toggleMute()">
+        <i class="fa-solid" [class]="volumeIcon()" aria-hidden="true"></i>
+      </button>
+      <input
+        type="range"
+        class="slider volume"
+        aria-label="Volume"
+        min="0"
+        max="100"
+        [value]="volumePct()"
+        [style.--pct.%]="volumePct()"
+        (input)="onVolume($event)"
+      />
+    </div>
+  </div>
+} @else {
+  <div class="bar empty">
+    <p>Pick something to play</p>
+  </div>
+}
