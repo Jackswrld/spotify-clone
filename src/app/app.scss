@@ -1,60 +1,85 @@
-.app-root {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background: #121212;
-  overflow: hidden;
+:host {
+  display: block;
+  height: 100dvh;
 }
 
-.app-body {
-  position: relative;
-  display: flex;
-  flex: 1;
+.shell {
+  display: grid;
+  height: 100%;
+  gap: 8px;
+  padding: 0 8px;
+  grid-template:
+    'nav nav nav' auto
+    'sidebar main panel' minmax(0, 1fr)
+    'player player player' var(--player-h)
+    / auto minmax(0, 1fr) auto;
+}
+
+.shell-nav {
+  grid-area: nav;
+}
+
+.shell-sidebar {
+  grid-area: sidebar;
   min-height: 0;
   overflow: hidden;
-  gap: 8px;
-  padding: 8px 8px 98px;
+  border-radius: var(--radius-m);
+  background: var(--bg);
 }
 
-.main-view {
-  flex: 1;
-  min-width: 0; 
+.shell-main {
+  grid-area: main;
   min-height: 0;
   overflow-y: auto;
-  border-radius: 8px;
-  background: #121212;
-  transition: flex-basis 0.2s ease, max-width 0.2s ease;
-
-  &.panel-open {
-    max-width: calc(100% - 320px);
-  }
+  border-radius: var(--radius-m);
+  background: var(--surface-1);
 }
 
-.open-now-playing {
-  position: absolute;
+.shell-panel {
+  grid-area: panel;
+  width: 320px;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-m);
+  background: var(--surface-1);
+}
+
+.shell-player {
+  grid-area: player;
+  margin: 0 -8px;
+}
+
+/* Tablet: the right panel becomes a drawer over the main view. */
+.shell[data-mode='tablet'] .shell-panel {
+  position: fixed;
+  top: 64px;
   right: 8px;
-  top: 16px;
-  z-index: 20;
-  width: 36px;
-  height: 36px;
-  border: 0;
-  border-radius: 50%;
-  background: #282828;
-  color: #fff;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  transition: background-color 0.2s, transform 0.2s;
+  bottom: calc(var(--player-h) + 8px);
+  z-index: 40;
+  box-shadow: 0 16px 48px var(--scrim);
+}
 
-  &:hover {
-    background: #3a3a3a;
-    transform: scale(1.04);
+/* Phone: one column, mini player and tab bar at the bottom. */
+.shell[data-mode='phone'] {
+  gap: 0;
+  padding: 0;
+  grid-template:
+    'nav' auto
+    'main' minmax(0, 1fr)
+    'mini' auto
+    'tabbar' var(--tabbar-h)
+    / minmax(0, 1fr);
+
+  .shell-main {
+    border-radius: 0;
+    background: var(--bg);
   }
 }
 
-@media (max-width: 820px) {
-  .main-view.panel-open {
-    max-width: 100%;
-  }
+.shell-mini {
+  grid-area: mini;
+}
+
+.shell-tabbar {
+  grid-area: tabbar;
 }

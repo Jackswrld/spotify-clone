@@ -1,28 +1,19 @@
 import { Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
-import { NavbarComponent } from './navbar/navbar';
+import { Navbar } from './layout/navbar/navbar';
+import { TabBar } from './layout/tab-bar/tab-bar';
 import { Library } from './library/library';
-import { NowPlayingPanelComponent } from './components/now-playing-panel/now-playing-panel';
 import { NowPlayingBarComponent } from './components/now-playing-bar/now-playing-bar';
-import { PanelStateService } from './services/panel-state.service';
+import { LayoutService } from './state/layout.service';
+import { PanelStateService } from './state/panel-state.service';
 
 @Component({
   selector: 'app-root',
-  standalone: true,
-  imports: [CommonModule, RouterOutlet, NavbarComponent, Library, NowPlayingPanelComponent, NowPlayingBarComponent],
+  imports: [RouterOutlet, Navbar, TabBar, Library, NowPlayingBarComponent],
   templateUrl: './app.html',
-  styleUrl: './app.scss'
+  styleUrl: './app.scss',
 })
 export class App {
-  private readonly panelState = inject(PanelStateService);
-
-  // The async pipe in the template subscribes to this shared panel state and unsubscribes automatically.
-  readonly isPanelOpen$ = this.panelState.isPanelOpen$;
-
-  readonly openNowPlayingLabel = 'Open now playing panel';
-
-  openNowPlayingPanel(): void {
-    this.panelState.setPanelState(true);
-  }
+  protected readonly layout = inject(LayoutService);
+  protected readonly panel = inject(PanelStateService);
 }

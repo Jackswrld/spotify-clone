@@ -1,19 +1,30 @@
-<div class="app-root">
-  <app-navbar></app-navbar>
-  <div class="app-body">
-    <app-library></app-library>
-    <main class="main-view" [class.panel-open]="isPanelOpen$ | async">
-      <router-outlet></router-outlet>
-    </main>
-    <button
-      *ngIf="(isPanelOpen$ | async) === false"
-      class="open-now-playing"
-      type="button"
-      [attr.aria-label]="openNowPlayingLabel"
-      (click)="openNowPlayingPanel()">
-      <i class="fa-solid fa-chevron-left"></i>
-    </button>
-    <app-now-playing-panel></app-now-playing-panel>
-    <app-now-playing-bar></app-now-playing-bar>
-  </div>
+<div class="shell" [attr.data-mode]="layout.mode()">
+  <header class="shell-nav">
+    <app-navbar />
+  </header>
+
+  @if (layout.mode() !== 'phone') {
+    <aside class="shell-sidebar" aria-label="Your Library">
+      <app-library />
+    </aside>
+  }
+
+  <main class="shell-main" id="main">
+    <router-outlet />
+  </main>
+
+  @if (layout.mode() !== 'phone' && panel.view()) {
+    <aside class="shell-panel" aria-label="Now playing"></aside>
+  }
+
+  @if (layout.mode() === 'phone') {
+    <div class="shell-mini"></div>
+    <footer class="shell-tabbar">
+      <app-tab-bar />
+    </footer>
+  } @else {
+    <footer class="shell-player">
+      <app-now-playing-bar />
+    </footer>
+  }
 </div>
