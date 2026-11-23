@@ -5,6 +5,7 @@ import { AudiusApi } from '../../core/api/audius-api';
 import { PlayerService } from '../../state/player.service';
 import { LyricsService } from '../../state/lyrics.service';
 import { LyricsLines } from '../../shared/lyrics-lines/lyrics-lines';
+import { LastfmAbout } from '../../shared/lastfm-about/lastfm-about';
 import { TrackMenuService } from '../../shared/add-to-playlist/track-menu.service';
 import { Cover } from '../../shared/cover/cover';
 import { LikeButton } from '../../shared/like-button/like-button';
@@ -17,7 +18,7 @@ import { scrollMainToTopOn } from '../scroll-top';
 
 @Component({
   selector: 'app-track-page',
-  imports: [RouterLink, Cover, LikeButton, TrackRow, ErrorState, Skeleton, LyricsLines],
+  imports: [RouterLink, Cover, LikeButton, TrackRow, ErrorState, Skeleton, LyricsLines, LastfmAbout],
   templateUrl: './track.html',
   styleUrl: './track.scss',
 })

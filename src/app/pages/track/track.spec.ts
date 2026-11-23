@@ -1,3 +1,4 @@
+import { ArtistEnrichmentService } from '../../state/artist-enrichment.service';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
@@ -38,6 +39,7 @@ function setup(trackResult = of(TRACK)) {
       provideRouter([]),
       { provide: AudiusApi, useValue: api },
       { provide: PlayerService, useValue: player },
+      { provide: ArtistEnrichmentService, useValue: { infoFor: () => of(null), fansAlsoLike: () => of([]) } },
       {
         provide: LyricsApi,
         useValue: { get: () => of({ plain: 'Look at the stars', lines: [], instrumental: false }) },

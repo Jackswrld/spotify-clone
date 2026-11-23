@@ -9,13 +9,14 @@ import { Shelf } from '../../shared/shelf/shelf';
 import { MediaCard } from '../../shared/media-card/media-card';
 import { ErrorState } from '../../shared/state-views/error-state';
 import { Skeleton } from '../../shared/state-views/skeleton';
+import { LastfmAbout } from '../../shared/lastfm-about/lastfm-about';
 import { formatCount } from '../../shared/utils/format';
 import { loadable } from '../../shared/utils/loadable';
 import { scrollMainToTopOn } from '../scroll-top';
 
 @Component({
   selector: 'app-artist-page',
-  imports: [Cover, TrackRow, Shelf, MediaCard, ErrorState, Skeleton],
+  imports: [Cover, TrackRow, Shelf, MediaCard, ErrorState, Skeleton, LastfmAbout],
   templateUrl: './artist.html',
   styleUrl: './artist.scss',
 })

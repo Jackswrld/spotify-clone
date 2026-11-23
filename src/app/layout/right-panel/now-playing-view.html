@@ -59,7 +59,7 @@
         <button type="button" class="follow" [attr.aria-pressed]="following()" (click)="toggleFollow()">
           {{ following() ? 'Following' : 'Follow' }}
         </button>
-        <!-- lastfm-slot -->
+        <app-lastfm-about [artist]="a" />
       </section>
     }
 

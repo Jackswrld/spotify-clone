@@ -1,3 +1,4 @@
+import { ArtistEnrichmentService } from '../../state/artist-enrichment.service';
 import { TestBed } from '@angular/core/testing';
 import { computed, signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
@@ -29,6 +30,7 @@ function setup() {
     providers: [
       provideRouter([]),
       { provide: PlayerService, useValue: player },
+      { provide: ArtistEnrichmentService, useValue: { infoFor: () => of(null), fansAlsoLike: () => of([]) } },
       { provide: AudiusApi, useValue: api },
       { provide: PanelStateService, useValue: { open: jasmine.createSpy('open') } },
       {

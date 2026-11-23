@@ -1,3 +1,4 @@
+import { ArtistEnrichmentService } from '../../state/artist-enrichment.service';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -21,7 +22,12 @@ function setup() {
   const player = fakePlayer();
   TestBed.configureTestingModule({
     imports: [ArtistPage],
-    providers: [provideRouter([]), { provide: AudiusApi, useValue: api }, { provide: PlayerService, useValue: player }],
+    providers: [
+      provideRouter([]),
+      { provide: AudiusApi, useValue: api },
+      { provide: PlayerService, useValue: player },
+      { provide: ArtistEnrichmentService, useValue: { infoFor: () => of(null), fansAlsoLike: () => of([]) } },
+    ],
   });
   const fixture = TestBed.createComponent(ArtistPage);
   fixture.componentRef.setInput('id', 'a1');
