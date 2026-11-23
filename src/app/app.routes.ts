@@ -12,7 +12,7 @@ export class EmptyPage {}
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'home' },
   { path: 'home', loadComponent: () => import('./pages/home/home').then((m) => m.HomePage) },
-  { path: 'search', component: EmptyPage },
+  { path: 'search', loadComponent: () => import('./pages/search/search').then((m) => m.SearchPage) },
   { path: 'track/:id', component: EmptyPage },
   { path: 'artist/:id', component: EmptyPage },
   { path: 'playlist/:id', component: EmptyPage },

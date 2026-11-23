@@ -1,0 +1,110 @@
+<div class="search">
+  @if (layout.mode() === 'phone') {
+    <label class="phone-search">
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      <span class="visually-hidden">Search</span>
+      <input
+        type="search"
+        placeholder="What do you want to play?"
+        autocomplete="off"
+        [value]="rawQuery()"
+        (input)="search($any($event.target).value.trim())"
+      />
+    </label>
+  }
+
+  @let s = state();
+  @switch (s.status) {
+    @case ('idle') {
+      <h1>Browse all</h1>
+      <div class="tiles">
+        @for (tile of tiles; track tile.name) {
+          <button type="button" class="tile" [style.background]="tile.background" (click)="search(tile.name)">
+            {{ tile.name }}
+          </button>
+        }
+      </div>
+    }
+    @case ('loading') {
+      <app-skeleton shape="row" [count]="8" />
+    }
+    @case ('ready') {
+      @if (isEmpty()) {
+        <div class="empty">
+          <h2>No results for "{{ s.q }}"</h2>
+          <p>Check the spelling, or try fewer or different words.</p>
+        </div>
+      } @else {
+        <div class="top-grid">
+          @if (topResult(); as top) {
+            <section class="top-result" aria-label="Top result">
+              <h2>Top result</h2>
+              @if (top.kind === 'artist') {
+                <a class="top-card" [routerLink]="['/artist', top.artist.id]">
+                  <app-cover class="top-art" [src]="top.artist.avatar.medium" [seed]="top.artist.id" [round]="true" />
+                  <span class="top-name">{{ top.artist.name }}</span>
+                  <span class="pill">Artist</span>
+                </a>
+              } @else {
+                <div class="top-card">
+                  <app-cover class="top-art" [src]="top.track.artwork.medium" [seed]="top.track.id" />
+                  <a class="top-name" [routerLink]="['/track', top.track.id]">{{ top.track.title }}</a>
+                  <span class="top-sub"><span class="pill">Song</span> {{ top.track.artistName }}</span>
+                  <button type="button" class="top-play" [attr.aria-label]="'Play ' + top.track.title" (click)="playSong(top.index)">
+                    <i class="fa-solid fa-play" aria-hidden="true"></i>
+                  </button>
+                </div>
+              }
+            </section>
+          }
+
+          @if (songs().length) {
+            <section class="songs" aria-label="Songs">
+              <h2>Songs</h2>
+              @for (track of songs(); track track.id; let i = $index) {
+                <app-track-row [track]="track" [index]="i" (play)="playSong(i)" />
+              }
+            </section>
+          }
+        </div>
+
+        @if (s.artists.length) {
+          <section class="group" aria-label="Artists">
+            <h2>Artists</h2>
+            <div class="row">
+              @for (a of s.artists; track a.id) {
+                <app-media-card
+                  [title]="a.name"
+                  subtitle="Artist"
+                  [image]="a.avatar.medium"
+                  [seed]="a.id"
+                  [round]="true"
+                  [playable]="false"
+                  [link]="['/artist', a.id]"
+                />
+              }
+            </div>
+          </section>
+        }
+
+        @if (s.playlists.length) {
+          <section class="group" aria-label="Playlists">
+            <h2>Playlists</h2>
+            <div class="row">
+              @for (p of s.playlists; track p.id) {
+                <app-media-card
+                  [title]="p.name"
+                  [subtitle]="'By ' + p.ownerName"
+                  [image]="p.artwork.medium"
+                  [seed]="p.id"
+                  [link]="['/playlist', p.id]"
+                  (play)="playPlaylist(p)"
+                />
+              }
+            </div>
+          </section>
+        }
+      }
+    }
+  }
+</div>
