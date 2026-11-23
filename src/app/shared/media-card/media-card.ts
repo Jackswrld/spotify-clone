@@ -30,7 +30,9 @@ import { Cover } from '../cover/cover';
   styles: `
     @use 'ui';
     :host {
+      display: block;
       flex: 0 0 180px;
+      min-width: 0;
       scroll-snap-align: start;
     }
     .card {

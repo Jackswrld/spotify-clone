@@ -11,7 +11,7 @@ export class EmptyPage {}
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'home' },
-  { path: 'home', loadComponent: () => import('./pages/home/temp-trending').then((m) => m.TempTrending) },
+  { path: 'home', loadComponent: () => import('./pages/home/home').then((m) => m.HomePage) },
   { path: 'search', component: EmptyPage },
   { path: 'track/:id', component: EmptyPage },
   { path: 'artist/:id', component: EmptyPage },

@@ -1,0 +1,105 @@
+<div class="home">
+  <header class="hero">
+    <h1>{{ greeting }}</h1>
+    <p class="fact">{{ funFact }}</p>
+  </header>
+
+  <div class="chips" role="group" aria-label="Genre">
+    @for (g of genres; track g) {
+      <button type="button" [class.active]="genre() === g" [attr.aria-pressed]="genre() === g" (click)="genre.set(g)">
+        {{ g }}
+      </button>
+    }
+  </div>
+
+  @if (quickPlay().length) {
+    <div class="quick">
+      @for (track of quickPlay(); track track.id; let i = $index) {
+        <button type="button" class="tile" (click)="playFrom(quickPlay(), i)" [attr.aria-label]="'Play ' + track.title">
+          <app-cover class="tile-art" [src]="track.artwork.small" [seed]="track.id" />
+          <span class="tile-name">{{ track.title }}</span>
+          <i class="fa-solid fa-play tile-play" aria-hidden="true"></i>
+        </button>
+      }
+    </div>
+  }
+
+  @let trendingState = trending.state();
+  <app-shelf
+    title="Trending this week"
+    [subtitle]="genre() === 'All' ? 'The most played on Audius' : genre()"
+    [loading]="trendingState.status === 'loading'"
+    [error]="trendingState.status === 'error' ? loadError : null"
+    [count]="trendingState.data?.length ?? 0"
+    (retry)="trending.retry()"
+  >
+    @for (track of trendingState.data ?? []; track track.id; let i = $index) {
+      <app-media-card
+        [title]="track.title"
+        [subtitle]="track.artistName"
+        [image]="track.artwork.medium"
+        [seed]="track.id"
+        [link]="['/track', track.id]"
+        (play)="playFrom(trendingState.data ?? [], i)"
+      />
+    }
+  </app-shelf>
+
+  @let playlistState = playlists.state();
+  <app-shelf
+    title="Trending playlists"
+    [loading]="playlistState.status === 'loading'"
+    [error]="playlistState.status === 'error' ? loadError : null"
+    [count]="playlistState.data?.length ?? 0"
+    (retry)="playlists.retry()"
+  >
+    @for (p of playlistState.data ?? []; track p.id) {
+      <app-media-card
+        [title]="p.name"
+        [subtitle]="'By ' + p.ownerName"
+        [image]="p.artwork.medium"
+        [seed]="p.id"
+        [link]="['/playlist', p.id]"
+        (play)="playPlaylist(p)"
+      />
+    }
+  </app-shelf>
+
+  @let undergroundState = underground.state();
+  <app-shelf
+    title="Underground trending"
+    subtitle="Rising artists to watch"
+    [loading]="undergroundState.status === 'loading'"
+    [error]="undergroundState.status === 'error' ? loadError : null"
+    [count]="undergroundState.data?.length ?? 0"
+    (retry)="underground.retry()"
+  >
+    @for (track of undergroundState.data ?? []; track track.id; let i = $index) {
+      <app-media-card
+        [title]="track.title"
+        [subtitle]="track.artistName"
+        [image]="track.artwork.medium"
+        [seed]="track.id"
+        [link]="['/track', track.id]"
+        (play)="playFrom(undergroundState.data ?? [], i)"
+      />
+    }
+  </app-shelf>
+
+  <app-shelf title="Recently played" [count]="player.recentlyPlayed().length">
+    @for (track of player.recentlyPlayed(); track track.id; let i = $index) {
+      <app-media-card
+        [title]="track.title"
+        [subtitle]="track.artistName"
+        [image]="track.artwork.medium"
+        [seed]="track.id"
+        [link]="['/track', track.id]"
+        (play)="playFrom(player.recentlyPlayed(), i)"
+      />
+    }
+  </app-shelf>
+
+  <footer class="credit">
+    Music from <a href="https://audius.co" target="_blank" rel="noopener">Audius</a>
+  </footer>
+</div>
