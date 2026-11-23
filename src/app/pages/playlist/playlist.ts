@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AudiusApi } from '../../core/api/audius-api';
 import { PlayerService } from '../../state/player.service';
@@ -9,6 +9,7 @@ import { ErrorState } from '../../shared/state-views/error-state';
 import { Skeleton } from '../../shared/state-views/skeleton';
 import { loadable } from '../../shared/utils/loadable';
 import { scrollMainToTopOn } from '../scroll-top';
+import { artworkColor } from '../../shared/utils/artwork-color';
 
 @Component({
   selector: 'app-playlist-page',
@@ -23,11 +24,12 @@ export class PlaylistPage {
 
   readonly id = input.required<string>();
 
-  /** Header tint; Task 15 replaces this with the artwork colour. */
-  protected readonly headerColor = signal('var(--surface-2)');
 
   protected readonly playlist = loadable(this.id, (id) => this.api.playlist(id));
   protected readonly tracks = loadable(this.id, (id) => this.api.playlistTracks(id));
+
+  /** Header tint sampled from the artwork. */
+  protected readonly headerColor = artworkColor(computed(() => this.playlist.state().data?.artwork.small));
 
   protected readonly saved = computed(() => this.library.isPlaylistSaved(this.id()));
 

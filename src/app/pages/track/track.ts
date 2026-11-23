@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { of } from 'rxjs';
 import { AudiusApi } from '../../core/api/audius-api';
@@ -15,6 +15,7 @@ import { Skeleton } from '../../shared/state-views/skeleton';
 import { formatCount, formatTime } from '../../shared/utils/format';
 import { loadable } from '../../shared/utils/loadable';
 import { scrollMainToTopOn } from '../scroll-top';
+import { artworkColor } from '../../shared/utils/artwork-color';
 
 @Component({
   selector: 'app-track-page',
@@ -31,8 +32,6 @@ export class TrackPage {
   /** Route param, bound by the router. */
   readonly id = input.required<string>();
 
-  /** Header tint; Task 15 replaces this with the artwork colour. */
-  protected readonly headerColor = signal('var(--surface-2)');
 
   protected readonly track = loadable(this.id, (id) => this.api.track(id));
   private readonly artistId = computed(() => this.track.state().data?.artistId ?? null);
@@ -44,6 +43,9 @@ export class TrackPage {
   protected readonly moreByArtist = computed(() =>
     (this.artistTracks.state().data ?? []).filter((t) => t.id !== this.id()),
   );
+
+  /** Header tint sampled from the artwork. */
+  protected readonly headerColor = artworkColor(computed(() => this.track.state().data?.artwork.small));
 
   protected readonly isCurrent = computed(() => this.player.current()?.id === this.id());
 

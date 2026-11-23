@@ -1,9 +1,10 @@
-import { Component, inject, input } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { PlayerService } from '../../state/player.service';
 import { LyricsService } from '../../state/lyrics.service';
 import { LyricsLines } from '../../shared/lyrics-lines/lyrics-lines';
 import { Skeleton } from '../../shared/state-views/skeleton';
+import { artworkColor } from '../../shared/utils/artwork-color';
 
 /** Full-screen synced lyrics for the current track. */
 @Component({
@@ -89,6 +90,6 @@ import { Skeleton } from '../../shared/state-views/skeleton';
 export class LyricsPage {
   protected readonly player = inject(PlayerService);
   protected readonly lyrics = inject(LyricsService);
-  /** Background colour; Task 15 passes the artwork colour. */
-  readonly color = input('var(--surface-2)');
+  /** Background sampled from the current artwork. */
+  protected readonly color = artworkColor(computed(() => this.player.current()?.artwork.small));
 }

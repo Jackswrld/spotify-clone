@@ -22,7 +22,7 @@ export class NowPlayingSheet {
   protected readonly trackMenu = inject(TrackMenuService);
 
   readonly open = input(false);
-  /** Background colour; Task 15 passes the artwork colour. */
+  /** Background colour sampled from the artwork. */
   readonly color = input('var(--surface-2)');
   readonly close = output<void>();
   readonly openQueue = output<void>();

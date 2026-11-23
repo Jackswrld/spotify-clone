@@ -8,6 +8,7 @@ import { TrackRow } from '../../shared/track-row/track-row';
 import { TrackMenuExtra } from '../../shared/add-to-playlist/track-menu.service';
 import { formatTime } from '../../shared/utils/format';
 import { scrollMainToTopOn } from '../scroll-top';
+import { artworkColor } from '../../shared/utils/artwork-color';
 
 /** One of the user's own playlists: rename, reorder, remove, delete. */
 @Component({
@@ -23,10 +24,11 @@ export class MyPlaylistPage {
 
   readonly id = input.required<string>();
 
-  /** Header tint; Task 15 replaces this with the artwork colour. */
-  protected readonly headerColor = signal('var(--surface-2)');
 
   protected readonly playlist = computed(() => this.library.myPlaylists().find((p) => p.id === this.id()));
+  /** Header tint sampled from the first track's artwork. */
+  protected readonly headerColor = artworkColor(computed(() => this.playlist()?.tracks[0]?.artwork.small));
+
   protected readonly totalTime = computed(() =>
     formatTime((this.playlist()?.tracks ?? []).reduce((sum, t) => sum + t.duration, 0)),
   );

@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { AudiusApi } from '../../core/api/audius-api';
 import { Playlist } from '../../core/models';
 import { PlayerService } from '../../state/player.service';
@@ -13,6 +13,7 @@ import { LastfmAbout } from '../../shared/lastfm-about/lastfm-about';
 import { formatCount } from '../../shared/utils/format';
 import { loadable } from '../../shared/utils/loadable';
 import { scrollMainToTopOn } from '../scroll-top';
+import { artworkColor } from '../../shared/utils/artwork-color';
 
 @Component({
   selector: 'app-artist-page',
@@ -27,12 +28,13 @@ export class ArtistPage {
 
   readonly id = input.required<string>();
 
-  /** Header tint; Task 15 replaces this with the artwork colour. */
-  protected readonly headerColor = signal('var(--surface-2)');
 
   protected readonly artist = loadable(this.id, (id) => this.api.artist(id));
   protected readonly popular = loadable(this.id, (id) => this.api.artistTracks(id, { sort: 'plays', limit: 10 }));
   protected readonly playlists = loadable(this.id, (id) => this.api.artistPlaylists(id, 12));
+
+  /** Header tint sampled from the avatar. */
+  protected readonly headerColor = artworkColor(computed(() => this.artist.state().data?.avatar.small));
 
   protected readonly following = computed(() => this.library.isArtistSaved(this.id()));
   protected readonly formatCount = formatCount;
