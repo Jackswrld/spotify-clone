@@ -2,7 +2,7 @@
 // It fetches feeds the browser can't, and keeps the YouTube key off the client.
 
 import { createChartFetcher, isValidChart } from './charts.mjs';
-import { createMatchCache, matchSong, songKey } from './youtube.mjs';
+import { createMatchCache, exactKey, matchSong, songKey } from './youtube.mjs';
 
 const DEV_ORIGINS = ['http://localhost:4300'];
 const MATCH_LIMIT_PER_MINUTE = 30;
@@ -65,7 +65,8 @@ export function createRelay({ fetch, env, now = Date.now, cacheFile }) {
         if (rateLimited(req.socket.remoteAddress ?? 'unknown')) return send(res, 429, { error: 'rate_limited' }, origin);
         const artist = (url.searchParams.get('artist') ?? '').trim();
         const title = (url.searchParams.get('title') ?? '').trim();
-        if (!artist || !title || artist.length > 200 || title.length > 300) {
+        // Names with no letters or digits would all share one cache entry: refuse them.
+        if (!exactKey(artist) || !exactKey(title) || artist.length > 200 || title.length > 300) {
           return send(res, 400, { error: 'bad_request' }, origin);
         }
         const durationS = Math.max(0, Math.round(Number(url.searchParams.get('duration')) || 0));

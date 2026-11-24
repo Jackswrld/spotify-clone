@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createMatchCache, matchSong, normalise, parseIsoDuration, score } from '../youtube.mjs';
+import { createMatchCache, matchSong, normalise, parseIsoDuration, score, songKey } from '../youtube.mjs';
 import { fakeFetch, startRelay } from './helpers.mjs';
 
 const SEARCH = 'https://www.googleapis.com/youtube/v3/search';
@@ -161,4 +161,36 @@ test('DELETE match forgets a cached video so the next play searches again', asyn
   assert.ok(fetch.calls.length > calls);
   assert.equal((await relay.request('/api/youtube/match?artist=Rema', { method: 'DELETE' })).status, 400);
   await relay.close();
+});
+
+test('non-Latin titles keep their letters and get distinct keys', () => {
+  assert.equal(normalise('夜に駆ける'), '夜に駆ける');
+  assert.equal(normalise('Кино'), 'кино');
+  assert.notEqual(songKey('YOASOBI', '夜に駆ける'), songKey('YOASOBI', 'アイドル'));
+  assert.notEqual(songKey('아이유', '좋은 날'), songKey('아이유', '밤편지'));
+});
+
+test('a remix or live version does not share the original song key; feat. credits still do', () => {
+  assert.notEqual(songKey('Rema', 'Calm Down (Remix)'), songKey('Rema', 'Calm Down'));
+  assert.notEqual(songKey('Oasis', 'Wonderwall (Live)'), songKey('Oasis', 'Wonderwall'));
+  assert.equal(songKey('Rema', 'Calm Down (feat. Selena Gomez)'), songKey('rema', 'CALM DOWN'));
+});
+
+test('a non-Latin song can match its official video', () => {
+  const song = { artist: 'YOASOBI', title: '夜に駆ける', durationS: 261 };
+  assert.ok(score({ title: '夜に駆ける', channelTitle: 'YOASOBI - Topic', durationS: 261 }, song) >= 3);
+});
+
+test('match route rejects names with no letters or digits instead of caching them', async () => {
+  const fetch = fakeYouTube([OFFICIAL]);
+  const relay = await startRelay({ fetch, env: { YOUTUBE_API_KEY: 'k' }, cacheFile: tmpFile() });
+  const res = await relay.get('/api/youtube/match?artist=%21%21&title=%3F%3F');
+  assert.equal(res.status, 400);
+  assert.equal(fetch.calls.length, 0);
+  await relay.close();
+});
+
+test('Japanese voicing marks are kept (only Latin accents are removed)', () => {
+  assert.equal(normalise('アイドル'), 'アイドル');
+  assert.notEqual(songKey('X', 'ぶ'), songKey('X', 'ふ'));
 });

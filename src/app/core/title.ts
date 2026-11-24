@@ -1,12 +1,16 @@
 import type { Track } from './models';
 
-/** Lower case, accents removed, non-alphanumerics to single spaces. */
+/** Combining accents used by Latin letters (é → e). Other scripts' marks are kept (ド stays ド). */
+const LATIN_ACCENTS = /[\u0300-\u036f]/g;
+
+/** Lower case, Latin accents removed, anything that isn't a letter or digit (any script) → one space. */
 function base(s: string): string {
   return s
     .normalize('NFD')
-    .replace(/\p{M}/gu, '')
+    .replace(LATIN_ACCENTS, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
+    .normalize('NFC')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim();
 }
 

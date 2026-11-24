@@ -10,19 +10,37 @@ const NO_MATCH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MIN_SCORE = 3;
 const DURATION_WINDOW_S = 15;
 const MAX_VIDEO_S = 15 * 60;
+/** Combining accents used by Latin letters (é → e). Other scripts' marks are kept (ド stays ド). */
+const LATIN_ACCENTS = /[\u0300-\u036f]/g;
+
 const PENALTY_WORDS = ['cover', 'live', 'remix', 'sped up', 'slowed', '8d', 'karaoke', 'lyrics'];
 
-/** Same rules as the app's core/title.ts normalise(): a loose "same song" key. */
-export function normalise(s) {
+/** Lower case, Latin accents removed, anything that isn't a letter or digit (any script) → one space. */
+function base(s) {
+  return String(s ?? '')
+    .normalize('NFD')
+    .replace(LATIN_ACCENTS, '')
+    .normalize('NFC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+}
+
+/** Removes "(feat. X)", "[ft. X]" and trailing "feat. X" credits. */
+function withoutFeat(s) {
   return String(s ?? '')
     .replace(/[([](?:feat|ft|featuring)\.?\s[^)\]]*[)\]]/gi, '')
-    .replace(/\s(?:feat|ft|featuring)\.?\s.*$/i, '')
-    .replace(/\s*[([][^)\]]*[)\]]/g, '')
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
+    .replace(/\s(?:feat|ft|featuring)\.?\s.*$/i, '');
+}
+
+/** Same rules as the app's core/title.ts normalise(): loose — drops every bracketed part (for scoring). */
+export function normalise(s) {
+  return base(withoutFeat(s).replace(/\s*[([][^)\]]*[)\]]/g, ''));
+}
+
+/** Strict: only "feat." credits, case and accents are ignored — "(Remix)" or "(Live)" stays part of it. */
+export function exactKey(s) {
+  return base(withoutFeat(s));
 }
 
 /** "PT1H2M3S" → 3723. */
@@ -98,7 +116,8 @@ export function createMatchCache(file) {
   };
 }
 
-export const songKey = (artist, title) => `${normalise(artist)}|${normalise(title)}`;
+/** Cache key: a remix or live version is a different recording from the original. */
+export const songKey = (artist, title) => `${exactKey(artist)}|${exactKey(title)}`;
 
 class QuotaError extends Error {}
 
