@@ -54,7 +54,9 @@
                 <i class="fa-solid fa-circle-check verified" aria-label="Verified"></i>
               }
             </span>
-            <span class="about-followers">{{ formatCount(a.followerCount) }} followers</span>
+            @if (a.source !== 'catalog') {
+              <span class="about-followers">{{ formatCount(a.followerCount) }} followers</span>
+            }
           </span>
         </a>
         @if (shortBio(a.bio); as bio) {

@@ -8,7 +8,7 @@ export type LibraryFilter = 'All' | 'Playlists' | 'Artists' | 'Liked songs';
 
 interface LibraryItem {
   key: string;
-  kind: 'liked' | 'mine' | 'playlist' | 'artist';
+  kind: 'liked' | 'mine' | 'playlist' | 'album' | 'artist';
   title: string;
   subtitle: string;
   image: string | null;
@@ -76,6 +76,19 @@ export class LibraryList {
         seed: p.id,
         round: false,
         link: ['/playlist', p.id],
+        queryParams: null,
+      });
+    }
+    for (const al of this.library.savedAlbums()) {
+      items.push({
+        key: 'album:' + al.id,
+        kind: 'album',
+        title: al.name,
+        subtitle: `Album • ${al.artistName}`,
+        image: al.artwork.small,
+        seed: al.id,
+        round: false,
+        link: ['/album', al.appleId],
         queryParams: null,
       });
     }

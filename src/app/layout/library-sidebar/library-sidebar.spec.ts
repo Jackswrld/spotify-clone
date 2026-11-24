@@ -83,4 +83,22 @@ describe('LibrarySidebar', () => {
     const { el } = setup();
     expect(el.querySelector('.sidebar')?.classList).toContain('collapsed');
   });
+
+  it('lists saved albums under Playlists as "Album • artist", linking to the album page', () => {
+    const { fixture, library, chip, titles, el } = setup();
+    library.toggleAlbumSave({
+      id: 'apple:77', appleId: '77', name: 'E-Mortal Boy', artistName: 'Rema', artistId: 'apple:9',
+      artwork: { small: null, medium: null, large: null }, releaseDate: null, trackCount: 7, genre: null, appleUrl: '',
+    });
+    library.toggleArtistSave(makeArtist('apple:9', { name: 'Rema', source: 'catalog' }));
+    fixture.detectChanges();
+    chip('Playlists').click();
+    fixture.detectChanges();
+    expect(titles()).toEqual(['E-Mortal Boy']);
+    expect(el.textContent).toContain('Album • Rema');
+    expect(el.querySelector('a.item')?.getAttribute('href')).toBe('/album/77');
+    chip('Artists').click();
+    fixture.detectChanges();
+    expect(el.querySelector('a.item')?.getAttribute('href')).toBe('/catalog-artist/9');
+  });
 });

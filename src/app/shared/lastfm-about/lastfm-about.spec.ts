@@ -6,6 +6,9 @@ import { ArtistEnrichmentService } from '../../state/artist-enrichment.service';
 import { ArtistInfo } from '../../core/models';
 import { makeArtist } from '../../pages/testing/page-test-helpers';
 import { FakeMedia, installFakeMatchMedia } from '../../state/testing-media';
+import { Router } from '@angular/router';
+import { CatalogApi } from '../../core/api/catalog-api';
+import { ToastService } from '../../state/toast.service';
 
 describe('LastfmAbout', () => {
   let media: FakeMedia;
@@ -21,10 +24,20 @@ describe('LastfmAbout', () => {
         return s;
       }),
       fansAlsoLike: jasmine.createSpy('fansAlsoLike').and.returnValue(of([])),
+      similarNames: jasmine.createSpy('similarNames').and.returnValue(of(['Burna Boy', 'Nobody'])),
+    };
+    const catalog = {
+      findArtist: jasmine.createSpy('findArtist').and.callFake((name: string) =>
+        of(name === 'Burna Boy' ? makeArtist('apple:44', { name, source: 'catalog' }) : null),
+      ),
     };
     TestBed.configureTestingModule({
       imports: [LastfmAbout],
-      providers: [provideRouter([]), { provide: ArtistEnrichmentService, useValue: enrichment }],
+      providers: [
+        provideRouter([]),
+        { provide: ArtistEnrichmentService, useValue: enrichment },
+        { provide: CatalogApi, useValue: catalog },
+      ],
     });
     const fixture = TestBed.createComponent(LastfmAbout);
     const respond = (id: string, info: ArtistInfo | null) => {
@@ -63,5 +76,20 @@ describe('LastfmAbout', () => {
     expect(el.textContent).not.toContain('Old bio');
     respond('new', { bio: 'New bio', tags: [], url: 'u' });
     expect(el.textContent).toContain('New bio');
+  });
+
+  it('for catalog artists, similar names resolve on Apple when clicked', () => {
+    const { fixture, el, respond } = setup();
+    const nav = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
+    fixture.componentRef.setInput('artist', makeArtist('apple:9', { name: 'Rema', source: 'catalog' }));
+    fixture.componentRef.setInput('showSimilar', true);
+    fixture.detectChanges();
+    respond('apple:9', null);
+    const buttons = [...el.querySelectorAll('.similar button')] as HTMLButtonElement[];
+    expect(buttons.map((b) => b.textContent?.trim())).toEqual(['Burna Boy', 'Nobody']);
+    buttons[0].click();
+    expect(nav).toHaveBeenCalledWith(['/catalog-artist', '44']);
+    buttons[1].click();
+    expect(TestBed.inject(ToastService).message()).toBe("Couldn't find this on Apple Music");
   });
 });

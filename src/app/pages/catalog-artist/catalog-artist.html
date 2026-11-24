@@ -1,0 +1,73 @@
+@let state = artist.state();
+<div class="page">
+  @switch (state.status) {
+    @case ('loading') {
+      <div class="header"><app-skeleton shape="text" [count]="3" /></div>
+    }
+    @case ('error') {
+      @if (isNetworkError(state.error)) {
+        <app-error-state message="Couldn't load this artist." (retry)="artist.retry(); albums.retry(); topSongs.retry()" />
+      } @else {
+        <app-error-state message="This artist isn't available." [showRetry]="false" />
+      }
+    }
+    @case ('ready') {
+      @let a = state.data;
+      <header class="header" [style.background]="'linear-gradient(180deg, ' + headerColor() + ' 0%, var(--surface-1) 100%)'">
+        <app-cover class="header-art" [src]="image()" [seed]="a.id" [round]="true" [alt]="a.name" />
+        <div class="header-text">
+          <span class="kind">Artist</span>
+          <h1>{{ a.name }}</h1>
+        </div>
+      </header>
+
+      <div class="actions">
+        <button type="button" class="big-play" aria-label="Play" [disabled]="!topSongs.state().data?.length" (click)="playTop()">
+          <i class="fa-solid fa-play" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="follow" [attr.aria-pressed]="following()" (click)="toggleFollow()">
+          {{ following() ? 'Following' : 'Follow' }}
+        </button>
+        @if (a.appleUrl) {
+          <a class="external" [href]="a.appleUrl" target="_blank" rel="noopener">Listen on Apple Music</a>
+        }
+      </div>
+
+      <div class="body">
+        @let albumState = albums.state();
+        <app-shelf
+          title="Latest releases"
+          [loading]="albumState.status === 'loading'"
+          [error]="albumState.status === 'error' ? 'Couldn’t load releases.' : null"
+          [count]="albumState.data?.length ?? 0"
+          (retry)="albums.retry()"
+        >
+          @for (al of albumState.data ?? []; track al.id) {
+            <app-media-card
+              [title]="al.name"
+              [subtitle]="releaseLabel(al)"
+              [image]="al.artwork.medium"
+              [seed]="al.id"
+              [link]="albumLink(al)"
+              (play)="playAlbum(al)"
+            />
+          }
+        </app-shelf>
+
+        @if (topSongs.state().data?.length) {
+          <section class="section top">
+            <h2>Top songs</h2>
+            @for (t of topSongs.state().data ?? []; track t.id; let i = $index) {
+              <app-track-row [track]="t" [index]="i" [showAlbumArtist]="false" (play)="playTop(i)" />
+            }
+          </section>
+        }
+
+        <section class="section">
+          <h2>About</h2>
+          <app-lastfm-about [artist]="a" [showSimilar]="true" />
+        </section>
+      </div>
+    }
+  }
+</div>

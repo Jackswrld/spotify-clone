@@ -27,6 +27,11 @@ export class ArtistEnrichmentService {
     );
   }
 
+  /** Last.fm similar-artist names (catalog artists resolve each on Apple when clicked). */
+  similarNames(artist: Artist): Observable<string[]> {
+    return this.lastfm.similar(artist.name, MAX_SIMILAR_NAMES);
+  }
+
   /** Similar artists from Last.fm that exist on Audius as verified accounts with the exact name. */
   fansAlsoLike(artist: Artist): Observable<Artist[]> {
     if (!artist.verified) return of([]);
