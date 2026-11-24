@@ -23,7 +23,7 @@ function fakeDocument() {
 
 function box(width: number, height: number): HTMLElement {
   const el = document.createElement('div');
-  el.style.cssText = `width:${width}px;height:${height}px`;
+  el.style.cssText = `position:fixed;left:0;top:0;width:${width}px;height:${height}px`;
   document.body.appendChild(el);
   return el;
 }
@@ -81,5 +81,37 @@ describe('VideoDockService', () => {
     created.push(panel);
     dock.registerSlot(panel, 2);
     expect(dock.canShow()).toBeTrue();
+  });
+
+  it('a slot scrolled partly out of its scrolling panel is not active (the video falls back to the floating card)', () => {
+    const { dock } = setup();
+    created.push(dock.host);
+    const panel = document.createElement('div');
+    panel.style.cssText = 'position:fixed;left:0;top:0;width:300px;height:300px;overflow-y:auto';
+    const slot = document.createElement('div');
+    slot.style.cssText = 'width:250px;height:250px';
+    const filler = document.createElement('div');
+    filler.style.cssText = 'height:1000px';
+    panel.append(slot, filler);
+    document.body.appendChild(panel);
+    created.push(panel);
+    dock.registerSlot(slot, 2);
+    expect(dock.activeSlot()).toBe(slot);
+    panel.scrollTop = 100; // the top 100px of the slot is now hidden by the panel
+    panel.dispatchEvent(new Event('scroll'));
+    expect(dock.activeSlot()).toBeNull();
+    panel.scrollTop = 0;
+    panel.dispatchEvent(new Event('scroll'));
+    expect(dock.activeSlot()).toBe(slot);
+  });
+
+  it('a slot outside the window is not active', () => {
+    const { dock } = setup();
+    created.push(dock.host);
+    const slot = box(250, 250);
+    slot.style.cssText += ';position:fixed;left:0;top:-100px';
+    created.push(slot);
+    dock.registerSlot(slot, 2);
+    expect(dock.activeSlot()).toBeNull();
   });
 });

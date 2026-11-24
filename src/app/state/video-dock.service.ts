@@ -2,6 +2,33 @@ import { DOCUMENT } from '@angular/common';
 import { Injectable, computed, inject, signal } from '@angular/core';
 
 const MIN_SIZE = 200;
+/** Sub-pixel rounding allowance when comparing rectangles. */
+const EPSILON = 1;
+
+function inside(r: DOMRect, box: { left: number; top: number; right: number; bottom: number }): boolean {
+  return (
+    r.left >= box.left - EPSILON &&
+    r.top >= box.top - EPSILON &&
+    r.right <= box.right + EPSILON &&
+    r.bottom <= box.bottom + EPSILON
+  );
+}
+
+/**
+ * True when the whole element can be seen: inside the window and not clipped by any
+ * scrolling or clipping ancestor (e.g. the right panel scrolled down to the lyrics).
+ */
+function fullyVisible(el: HTMLElement): boolean {
+  const r = el.getBoundingClientRect();
+  if (!inside(r, { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight })) return false;
+  for (let parent = el.parentElement; parent && parent !== document.body; parent = parent.parentElement) {
+    const style = getComputedStyle(parent);
+    if (style.overflowX !== 'visible' || style.overflowY !== 'visible') {
+      if (!inside(r, parent.getBoundingClientRect())) return false;
+    }
+  }
+  return true;
+}
 
 interface Slot {
   el: HTMLElement;
@@ -35,7 +62,7 @@ export class VideoDockService {
       .filter(({ el }) => {
         if (!el.isConnected) return false;
         const r = el.getBoundingClientRect();
-        return r.width >= MIN_SIZE && r.height >= MIN_SIZE;
+        return r.width >= MIN_SIZE && r.height >= MIN_SIZE && fullyVisible(el);
       })
       .sort((a, b) => b.priority - a.priority);
     return usable[0]?.el ?? null;
@@ -53,7 +80,11 @@ export class VideoDockService {
     this.doc.addEventListener('visibilitychange', () => {
       this.pageVisible.set(this.doc.visibilityState !== 'hidden');
     });
-    if (typeof window !== 'undefined') window.addEventListener('resize', () => this.relayout());
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', () => this.relayout());
+      // Capture: element scrolls (panels, the phone sheet) don't bubble but reach window in capture.
+      window.addEventListener('scroll', () => this.relayout(), true);
+    }
   }
 
   /** A place where the video should appear; higher priority wins. Returns an unregister function. */
