@@ -86,8 +86,15 @@ function setup(opts: { recent?: Track[]; undergroundFails?: boolean; global?: { 
 
 describe('HomePage', () => {
   let media: FakeMedia;
-  beforeEach(() => (media = installFakeMatchMedia(1280)));
-  afterEach(() => media.restore());
+  // Saved country/recents must not leak between tests (Karma runs them in random order).
+  beforeEach(() => {
+    localStorage.clear();
+    media = installFakeMatchMedia(1280);
+  });
+  afterEach(() => {
+    media.restore();
+    localStorage.clear();
+  });
 
   it('requests trending with no genre for All and the chip genre when selected', () => {
     const { fixture, el, api } = setup();
