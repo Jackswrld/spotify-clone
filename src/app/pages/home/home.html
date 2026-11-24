@@ -29,9 +29,9 @@
     [title]="'Top songs in ' + countries.countryName()"
     subtitle="Charts from Apple Music"
     [loading]="songsState.status === 'loading'"
-    [error]="songsState.status === 'error' ? loadError : null"
+    [error]="songsState.status === 'error' ? chartError() : null"
     [count]="songsState.data?.length ?? 0"
-    (retry)="topSongs.retry()"
+    (retry)="retryCharts()"
   >
     @for (track of songsState.data ?? []; track track.id; let i = $index) {
       <app-media-card
@@ -50,9 +50,9 @@
     [title]="'Top albums in ' + countries.countryName()"
     subtitle="Charts from Apple Music"
     [loading]="albumsState.status === 'loading'"
-    [error]="albumsState.status === 'error' ? loadError : null"
+    [error]="albumsState.status === 'error' ? chartError() : null"
     [count]="albumsState.data?.length ?? 0"
-    (retry)="topAlbums.retry()"
+    (retry)="retryCharts()"
   >
     @for (album of albumsState.data ?? []; track album.id) {
       <app-media-card

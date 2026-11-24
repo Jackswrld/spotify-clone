@@ -8,6 +8,7 @@ import { LastFmApi } from '../../core/api/lastfm-api';
 import { CatalogApi } from '../../core/api/catalog-api';
 import { CountryPicker, CountryService } from '../../shared/country-picker/country-picker';
 import { ToastService } from '../../state/toast.service';
+import { RelayStatusService } from '../../core/api/relay-status';
 import { PlayerService } from '../../state/player.service';
 import { LibraryService } from '../../state/library.service';
 import { Shelf } from '../../shared/shelf/shelf';
@@ -54,6 +55,7 @@ export class HomePage {
   private readonly catalog = inject(CatalogApi);
   private readonly toast = inject(ToastService);
   protected readonly countries = inject(CountryService);
+  private readonly relay = inject(RelayStatusService);
   protected readonly player = inject(PlayerService);
   protected readonly library = inject(LibraryService);
 
@@ -62,6 +64,10 @@ export class HomePage {
   protected readonly genres = HOME_GENRES;
   protected readonly genre = signal<(typeof HOME_GENRES)[number]>('All');
   protected readonly loadError = LOAD_ERROR;
+  /** Charts come through the local relay; say so when it is unreachable. */
+  protected readonly chartError = computed(() =>
+    this.relay.status() === 'down' ? "Can't reach the music server." : LOAD_ERROR,
+  );
 
   protected readonly trending = loadable(this.genre, (genre) =>
     this.api.trendingTracks({ genre: genre === 'All' ? undefined : genre, time: 'week', limit: 20 }),
@@ -85,6 +91,12 @@ export class HomePage {
 
   protected playFrom(list: Track[], index: number): void {
     this.player.playTracks(list, index);
+  }
+
+  protected retryCharts(): void {
+    this.relay.recheck();
+    this.topSongs.retry();
+    this.topAlbums.retry();
   }
 
   protected playAlbum(album: Album): void {

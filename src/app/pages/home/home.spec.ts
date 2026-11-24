@@ -15,6 +15,7 @@ import { CatalogApi } from '../../core/api/catalog-api';
 import { CountryService } from '../../shared/country-picker/country-picker';
 import { ToastService } from '../../state/toast.service';
 import { Album } from '../../core/models';
+import { RelayStatusService } from '../../core/api/relay-status';
 
 const CHART = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7'].map((id) =>
   makeTrack(`apple:${id}`, { source: 'catalog', appleId: id, title: `Hit ${id}` }),
@@ -29,7 +30,7 @@ const ALBUMS: Album[] = [
 const TRENDING = ['1', '2', '3'].map((id) => makeTrack(id));
 const UNDERGROUND = ['u1', 'u2'].map((id) => makeTrack(id));
 
-function setup(opts: { recent?: Track[]; undergroundFails?: boolean; global?: { name: string; artist: string; image: string | null }[]; chart?: Track[] } = {}) {
+function setup(opts: { recent?: Track[]; undergroundFails?: boolean; global?: { name: string; artist: string; image: string | null }[]; chart?: Track[]; relayDown?: boolean } = {}) {
   let undergroundFails = opts.undergroundFails ?? false;
   const api = {
     trendingTracks: jasmine.createSpy('trendingTracks').and.returnValue(of(TRENDING)),
@@ -44,6 +45,7 @@ function setup(opts: { recent?: Track[]; undergroundFails?: boolean; global?: { 
     topAlbums: jasmine.createSpy('topAlbums').and.returnValue(of(ALBUMS)),
   };
   const lastfm = { topTracks: jasmine.createSpy('topTracks').and.returnValue(of(opts.global ?? [])) };
+  const relay = { status: signal<'unknown' | 'ok' | 'down'>(opts.relayDown ? 'down' : 'ok'), recheck: jasmine.createSpy('recheck') };
   const catalog = { findSong: jasmine.createSpy('findSong').and.returnValue(of(CHART[0])) };
   const player = {
     playTracks: jasmine.createSpy('playTracks'),
@@ -60,6 +62,7 @@ function setup(opts: { recent?: Track[]; undergroundFails?: boolean; global?: { 
       { provide: ChartsApi, useValue: charts },
       { provide: LastFmApi, useValue: lastfm },
       { provide: CatalogApi, useValue: catalog },
+      { provide: RelayStatusService, useValue: relay },
     ],
   });
   const fixture = TestBed.createComponent(HomePage);
@@ -72,6 +75,7 @@ function setup(opts: { recent?: Track[]; undergroundFails?: boolean; global?: { 
     player,
     charts,
     catalog,
+    relay,
     setUndergroundFails: (v: boolean) => (undergroundFails = v),
     shelf: (title: string) =>
       [...el.querySelectorAll('app-shelf')].find((s) => s.querySelector('h2')?.textContent?.trim() === title) as
@@ -199,5 +203,16 @@ describe('HomePage', () => {
   it('FUN_FACTS has no duplicates', () => {
     expect(new Set(FUN_FACTS).size).toBe(FUN_FACTS.length);
     expect(FUN_FACTS.some((f) => f.includes('  '))).toBeFalse();
+  });
+
+  it('when the music server is down, chart shelves say so and Retry rechecks it', () => {
+    const { el, charts, relay, fixture } = setup({ relayDown: true });
+    charts.topSongs.and.returnValue(throwError(() => new Error('down')));
+    TestBed.inject(CountryService).set('gh');
+    fixture.detectChanges();
+    const shelfEl = [...el.querySelectorAll('app-shelf')].find((s) => s.textContent?.includes("Can't reach the music server."));
+    expect(shelfEl).toBeTruthy();
+    (shelfEl!.querySelector('button.retry') as HTMLButtonElement).click();
+    expect(relay.recheck).toHaveBeenCalled();
   });
 });
