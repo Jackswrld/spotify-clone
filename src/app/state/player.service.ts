@@ -1,7 +1,9 @@
 import { Injectable, InjectionToken, Signal, computed, effect, inject, signal } from '@angular/core';
 import { AudiusApi } from '../core/api/audius-api';
-import { Track, upgradeSource } from '../core/models';
+import { Track, TrackSource, upgradeSource } from '../core/models';
 import { safeStorage } from './safe-storage';
+import { Engine, EngineEvent } from './engines/engine';
+import { AudioEngine } from './engines/audio-engine';
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
@@ -24,14 +26,17 @@ interface Settings {
 const DEFAULT_SETTINGS: Settings = { volume: 1, muted: false, shuffle: false, repeat: 'off' };
 
 /**
- * Owns the app's single audio element and the play queue. Components read its
- * signals and call its methods; nothing else touches the audio element.
+ * Owns the play queue and decides what plays. Sound comes from an Engine
+ * (AudioEngine for Audius; YouTubeEngine for catalog songs, added later).
+ * Components read its signals and call its methods; nothing else touches an engine.
  */
 @Injectable({ providedIn: 'root' })
 export class PlayerService {
   private readonly api = inject(AudiusApi);
   private readonly random = inject(RANDOM);
-  private readonly audio: HTMLAudioElement;
+  private readonly audioEngine: Engine;
+  /** The engine for the current track; events from any other engine are ignored. */
+  private active: Engine;
 
   private readonly _queue = signal<Track[]>([]);
   private readonly _index = signal(-1);
@@ -78,17 +83,34 @@ export class PlayerService {
     this.shuffle = this._shuffle.asReadonly();
     this.repeat = this._repeat.asReadonly();
 
-    this.audio = this.createAudio();
-    this.audio.preload = 'auto';
-    this.audio.volume = this._volume();
-    this.audio.muted = this._muted();
-    this.listen();
+    this.audioEngine = new AudioEngine(this.createAudio(), (id) => this.api.streamUrl(id));
+    this.active = this.audioEngine;
+    this.attach(this.audioEngine);
     this.setUpMediaSession();
   }
 
   /** Overridden in tests with a fake element. */
   protected createAudio(): HTMLAudioElement {
     return new Audio();
+  }
+
+  /** The engine that plays tracks from this source. */
+  protected engineFor(source: TrackSource): Engine {
+    void source;
+    return this.audioEngine;
+  }
+
+  /** Every engine shares volume/mute and reports into the same handler. */
+  protected attach(engine: Engine): void {
+    engine.setVolume(this._volume());
+    engine.setMuted(this._muted());
+    engine.events.subscribe((event) => {
+      if (engine === this.active) this.onEngineEvent(event);
+    });
+  }
+
+  private allEngines(): Engine[] {
+    return [this.audioEngine];
   }
 
   // ---- Queue -------------------------------------------------------------
@@ -178,14 +200,14 @@ export class PlayerService {
 
   toggle(): void {
     if (!this.current()) return;
-    if (this.audio.error) {
-      // The element is stuck after a failed load; reload the track instead of calling play().
+    if (this.active.hasFailed()) {
+      // The engine is stuck after a failed load; reload the track instead of calling play().
       this.resetErrors();
       this.load(this._index());
-    } else if (this.audio.paused) {
+    } else if (this.active.isPaused()) {
       this.play();
     } else {
-      this.audio.pause();
+      this.active.pause();
     }
   }
 
@@ -208,7 +230,7 @@ export class PlayerService {
     const duration = this._duration();
     const max = Number.isFinite(duration) && duration > 0 ? duration : Infinity;
     const value = Math.min(Math.max(0, seconds), max);
-    this.audio.currentTime = value;
+    this.active.seek(value);
     this._time.set(value);
     this.updatePositionState();
   }
@@ -216,14 +238,14 @@ export class PlayerService {
   setVolume(v: number): void {
     const value = clamp01(v);
     this._volume.set(value);
-    this.audio.volume = value;
+    for (const e of this.allEngines()) e.setVolume(value);
     if (value > 0 && this._muted()) this.toggleMute();
     this.saveSettings();
   }
 
   toggleMute(): void {
     this._muted.update((m) => !m);
-    this.audio.muted = this._muted();
+    for (const e of this.allEngines()) e.setMuted(this._muted());
     this.saveSettings();
   }
 
@@ -261,33 +283,26 @@ export class PlayerService {
   private load(index: number): void {
     const track = this._queue()[index];
     if (!track) return;
+    const engine = this.engineFor(track.source);
+    if (engine !== this.active) {
+      this.active.unload();
+      this.active = engine;
+    }
     this._index.set(index);
     this._time.set(0);
     this._duration.set(track.duration);
-    this.audio.src = this.api.streamUrl(track.id);
-    this.play();
+    this._isPlaying.set(true);
+    engine.load(track, true);
   }
 
   private play(): void {
     this._isPlaying.set(true);
-    let result: Promise<void> | undefined;
-    try {
-      result = this.audio.play();
-    } catch {
-      result = undefined;
-    }
-    result?.catch((err: unknown) => {
-      const name = (err as { name?: string })?.name;
-      if (name === 'AbortError') return; // superseded by a newer load; not a failure
-      // Autoplay blocked, no usable source, etc.: show Play again. Stream failures also
-      // surface through the element's 'error' event, which handles skipping.
-      this._isPlaying.set(false);
-    });
+    this.active.play();
   }
 
   private stop(): void {
-    this.audio.pause();
-    this.audio.currentTime = 0;
+    this.active.pause();
+    this.active.seek(0);
     this._time.set(0);
     this._isPlaying.set(false);
     this._isBuffering.set(false);
@@ -295,40 +310,50 @@ export class PlayerService {
 
   private reset(): void {
     this.stop();
-    this.audio.removeAttribute('src');
+    this.active.unload();
     this._queue.set([]);
     this.originalQueue = [];
     this._index.set(-1);
   }
 
-  private listen(): void {
-    const a = this.audio;
-    a.addEventListener('playing', () => {
-      this._isPlaying.set(true);
-      this._isBuffering.set(false);
-      this.consecutiveErrors = 0;
-      this._error.set(null);
-      this.remember(this.current());
-    });
-    a.addEventListener('pause', () => this._isPlaying.set(false));
-    a.addEventListener('waiting', () => this._isBuffering.set(true));
-    a.addEventListener('canplay', () => this._isBuffering.set(false));
-    a.addEventListener('timeupdate', () => this._time.set(a.currentTime));
-    const onDuration = () => {
-      if (Number.isFinite(a.duration) && a.duration > 0) this._duration.set(a.duration);
-      this.updatePositionState();
-    };
-    a.addEventListener('loadedmetadata', onDuration);
-    a.addEventListener('durationchange', onDuration);
-    a.addEventListener('ended', () => {
-      if (this._repeat() === 'one') {
-        this.seek(0);
-        this.play();
-      } else {
-        this.next();
-      }
-    });
-    a.addEventListener('error', () => this.onError());
+  private onEngineEvent(event: EngineEvent): void {
+    switch (event.type) {
+      case 'playing':
+        this._isPlaying.set(true);
+        this._isBuffering.set(false);
+        this.consecutiveErrors = 0;
+        this._error.set(null);
+        this.remember(this.current());
+        break;
+      case 'paused':
+      case 'blocked': // autoplay refused: show Play, no message
+        this._isPlaying.set(false);
+        break;
+      case 'waiting':
+        this._isBuffering.set(true);
+        break;
+      case 'canplay':
+        this._isBuffering.set(false);
+        break;
+      case 'time':
+        this._time.set(event.time);
+        if (Number.isFinite(event.duration) && event.duration > 0 && event.duration !== this._duration()) {
+          this._duration.set(event.duration);
+          this.updatePositionState();
+        }
+        break;
+      case 'ended':
+        if (this._repeat() === 'one') {
+          this.seek(0);
+          this.play();
+        } else {
+          this.next();
+        }
+        break;
+      case 'error':
+        this.onError();
+        break;
+    }
   }
 
   private onError(): void {
@@ -391,7 +416,7 @@ export class PlayerService {
     const session = navigator.mediaSession;
     const handlers: [MediaSessionAction, MediaSessionActionHandler][] = [
       ['play', () => this.play()],
-      ['pause', () => this.audio.pause()],
+      ['pause', () => this.active.pause()],
       ['previoustrack', () => this.previous()],
       ['nexttrack', () => this.next()],
       ['seekto', (d) => d.seekTime != null && this.seek(d.seekTime)],
