@@ -43,6 +43,17 @@ describe('ArtistEnrichmentService', () => {
     expect(out).toEqual({ bio: 'Bio', tags: ['dnb'], url: 'u' });
   });
 
+  it('infoFor skips the verified rule for Apple catalog artists but keeps the exact name', () => {
+    const { service } = setup({ lastFmName: 'Rema' });
+    let out: ArtistInfo | null | undefined;
+    service.infoFor(makeArtist('apple:9', { name: 'Rema', verified: false, source: 'catalog' })).subscribe((i) => (out = i));
+    expect(out).toEqual({ bio: 'Bio', tags: ['dnb'], url: 'u' });
+    TestBed.resetTestingModule();
+    const other = setup({ lastFmName: 'Rema Band' });
+    other.service.infoFor(makeArtist('apple:9', { name: 'Rema', source: 'catalog' })).subscribe((i) => (out = i));
+    expect(out).toBeNull();
+  });
+
   it('infoFor returns null when the Last.fm name differs', () => {
     const { service } = setup({ lastFmName: 'Xsetra Band' });
     let out: ArtistInfo | null | undefined;

@@ -20,7 +20,8 @@ export class ArtistEnrichmentService {
   private readonly audius = inject(AudiusApi);
 
   infoFor(artist: Artist): Observable<ArtistInfo | null> {
-    if (!artist.verified) return of(null);
+    // Apple artist ids are authoritative, so catalog artists only need the exact-name check.
+    if (artist.source !== 'catalog' && !artist.verified) return of(null);
     return this.lastfm.artistInfo(artist.name).pipe(
       map((info) => (info && sameName(info.name, artist.name) ? { bio: info.bio, tags: info.tags, url: info.url } : null)),
     );
