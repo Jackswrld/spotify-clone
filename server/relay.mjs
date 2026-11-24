@@ -2,7 +2,7 @@
 // It fetches feeds the browser can't, and keeps the YouTube key off the client.
 
 import { createChartFetcher, isValidChart } from './charts.mjs';
-import { createMatchCache, matchSong } from './youtube.mjs';
+import { createMatchCache, matchSong, songKey } from './youtube.mjs';
 
 const DEV_ORIGINS = ['http://localhost:4300'];
 const MATCH_LIMIT_PER_MINUTE = 30;
@@ -78,6 +78,15 @@ export function createRelay({ fetch, env, now = Date.now, cacheFile }) {
         } catch {
           return send(res, 502, { error: 'upstream' }, origin);
         }
+      }
+
+      if (req.method === 'DELETE' && url.pathname === '/api/youtube/match') {
+        // The app reports a matched video was removed or blocked from embedding.
+        const artist = (url.searchParams.get('artist') ?? '').trim();
+        const title = (url.searchParams.get('title') ?? '').trim();
+        if (!artist || !title) return send(res, 400, { error: 'bad_request' }, origin);
+        matchCache.delete(songKey(artist, title));
+        return send(res, 200, { ok: true }, origin);
       }
 
       return send(res, 404, { error: 'not_found' }, origin);

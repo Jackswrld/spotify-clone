@@ -145,3 +145,20 @@ test('match route without a key answers no-key', async () => {
   assert.deepEqual(await res.json(), { videoId: null, reason: 'no-key' });
   await relay.close();
 });
+
+test('DELETE match forgets a cached video so the next play searches again', async () => {
+  const fetch = fakeYouTube([OFFICIAL]);
+  const relay = await startRelay({ fetch, env: { YOUTUBE_API_KEY: 'k' }, cacheFile: tmpFile(), now: () => 0 });
+  const path = '/api/youtube/match?artist=Rema&title=Calm%20Down';
+  await relay.get(path);
+  const calls = fetch.calls.length;
+  await relay.get(path);
+  assert.equal(fetch.calls.length, calls); // cached
+  const del = await relay.request(path, { method: 'DELETE' });
+  assert.equal(del.status, 200);
+  assert.deepEqual(await del.json(), { ok: true });
+  await relay.get(path);
+  assert.ok(fetch.calls.length > calls);
+  assert.equal((await relay.request('/api/youtube/match?artist=Rema', { method: 'DELETE' })).status, 400);
+  await relay.close();
+});
