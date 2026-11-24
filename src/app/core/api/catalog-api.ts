@@ -1,14 +1,15 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Injectable, InjectionToken, Signal, inject, signal } from '@angular/core';
+import { Injectable, InjectionToken, Signal, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { Album, Artist, Artwork, Track } from '../models';
 import { exactKey } from '../title';
+import { CountryService } from '../../shared/country-picker/country-picker';
 
 const ITUNES = 'https://itunes.apple.com';
 
-/** The store country for catalog requests (Task 7 wires this to the country picker). */
+/** The store country for catalog requests: the one chosen in the country picker. */
 export const CATALOG_COUNTRY = new InjectionToken<Signal<string>>('CATALOG_COUNTRY', {
-  factory: () => signal('us'),
+  factory: () => inject(CountryService).country,
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -123,6 +123,29 @@ h2 {
   }
 }
 
+.songs-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.song-tabs {
+  display: flex;
+  gap: 6px;
+
+  button {
+    @include ui.pill;
+    font-size: 12px;
+    padding: 4px 12px;
+    &.active {
+      @include ui.pill(true);
+      font-size: 12px;
+      padding: 4px 12px;
+    }
+  }
+}
+
 .group {
   margin-bottom: 32px;
 }

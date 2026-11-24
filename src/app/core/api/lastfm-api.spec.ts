@@ -97,4 +97,33 @@ describe('LastFmApi', () => {
     http.expectOne((r) => r.url === URL).flush('x', { status: 500, statusText: 'Server Error' });
     expect(out).toEqual([]);
   });
+
+  it('topTracks maps names, artists and images', () => {
+    const { api, http } = setup();
+    let out: { name: string; artist: string; image: string | null }[] = [];
+    api.topTracks(2).subscribe((t) => (out = t));
+    const req = http.expectOne((r) => r.url === URL);
+    expect(req.request.params.get('method')).toBe('chart.gettoptracks');
+    expect(req.request.params.get('limit')).toBe('2');
+    req.flush({
+      tracks: {
+        track: [
+          { name: 'Calm Down', artist: { name: 'Rema' }, image: [{ size: 'small', '#text': '' }, { size: 'large', '#text': 'https://img/l.png' }] },
+          { name: 'Song', artist: { name: 'Someone' }, image: [] },
+        ],
+      },
+    });
+    expect(out).toEqual([
+      { name: 'Calm Down', artist: 'Rema', image: 'https://img/l.png' },
+      { name: 'Song', artist: 'Someone', image: null },
+    ]);
+  });
+
+  it('topTracks returns [] without a key', () => {
+    const { api, http } = setup('');
+    let out: unknown[] | undefined;
+    api.topTracks().subscribe((t) => (out = t));
+    http.expectNone(() => true);
+    expect(out).toEqual([]);
+  });
 });

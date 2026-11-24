@@ -9,11 +9,27 @@ import { PlayerService } from '../../state/player.service';
 import { Track } from '../../core/models';
 import { makeTrack } from '../../core/testing/make-track';
 import { FakeMedia, installFakeMatchMedia } from '../../state/testing-media';
+import { ChartsApi } from '../../core/api/charts-api';
+import { LastFmApi } from '../../core/api/lastfm-api';
+import { CatalogApi } from '../../core/api/catalog-api';
+import { CountryService } from '../../shared/country-picker/country-picker';
+import { ToastService } from '../../state/toast.service';
+import { Album } from '../../core/models';
+
+const CHART = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7'].map((id) =>
+  makeTrack(`apple:${id}`, { source: 'catalog', appleId: id, title: `Hit ${id}` }),
+);
+const ALBUMS: Album[] = [
+  {
+    id: 'apple:a1', appleId: 'a1', name: 'E-Mortal Boy', artistName: 'Rema', artistId: 'apple:9',
+    artwork: { small: null, medium: null, large: null }, releaseDate: '2026-11-20', trackCount: 7, genre: null, appleUrl: '',
+  },
+];
 
 const TRENDING = ['1', '2', '3'].map((id) => makeTrack(id));
 const UNDERGROUND = ['u1', 'u2'].map((id) => makeTrack(id));
 
-function setup(opts: { recent?: Track[]; undergroundFails?: boolean } = {}) {
+function setup(opts: { recent?: Track[]; undergroundFails?: boolean; global?: { name: string; artist: string; image: string | null }[]; chart?: Track[] } = {}) {
   let undergroundFails = opts.undergroundFails ?? false;
   const api = {
     trendingTracks: jasmine.createSpy('trendingTracks').and.returnValue(of(TRENDING)),
@@ -23,6 +39,12 @@ function setup(opts: { recent?: Track[]; undergroundFails?: boolean } = {}) {
     trendingPlaylists: jasmine.createSpy('trendingPlaylists').and.returnValue(of([])),
     playlistTracks: jasmine.createSpy('playlistTracks').and.returnValue(of([])),
   };
+  const charts = {
+    topSongs: jasmine.createSpy('topSongs').and.returnValue(of(opts.chart ?? CHART)),
+    topAlbums: jasmine.createSpy('topAlbums').and.returnValue(of(ALBUMS)),
+  };
+  const lastfm = { topTracks: jasmine.createSpy('topTracks').and.returnValue(of(opts.global ?? [])) };
+  const catalog = { findSong: jasmine.createSpy('findSong').and.returnValue(of(CHART[0])) };
   const player = {
     playTracks: jasmine.createSpy('playTracks'),
     recentlyPlayed: signal(opts.recent ?? []),
@@ -35,6 +57,9 @@ function setup(opts: { recent?: Track[]; undergroundFails?: boolean } = {}) {
       provideRouter([]),
       { provide: AudiusApi, useValue: api },
       { provide: PlayerService, useValue: player },
+      { provide: ChartsApi, useValue: charts },
+      { provide: LastFmApi, useValue: lastfm },
+      { provide: CatalogApi, useValue: catalog },
     ],
   });
   const fixture = TestBed.createComponent(HomePage);
@@ -45,6 +70,8 @@ function setup(opts: { recent?: Track[]; undergroundFails?: boolean } = {}) {
     el,
     api,
     player,
+    charts,
+    catalog,
     setUndergroundFails: (v: boolean) => (undergroundFails = v),
     shelf: (title: string) =>
       [...el.querySelectorAll('app-shelf')].find((s) => s.querySelector('h2')?.textContent?.trim() === title) as
@@ -95,10 +122,66 @@ describe('HomePage', () => {
     expect(shelf('Recently played')!.querySelectorAll('app-media-card').length).toBe(1);
   });
 
-  it('quick-play grid shows the first trending tracks', () => {
+  it('quick-play grid shows the top 6 chart songs, falling back to Audius trending', () => {
     localStorage.clear();
+    let s = setup();
+    expect(s.el.querySelectorAll('.quick button').length).toBe(6);
+    expect(s.el.querySelector('.quick button')?.textContent).toContain('Hit c1');
+    TestBed.resetTestingModule();
+    s = setup({ chart: [] });
+    expect(s.el.querySelectorAll('.quick button').length).toBe(3);
+  });
+
+  it('requests charts for the selected country and re-requests on change', () => {
+    localStorage.clear();
+    const { fixture, charts } = setup();
+    const country = TestBed.inject(CountryService).country();
+    expect(charts.topSongs).toHaveBeenCalledWith(country, 25);
+    expect(charts.topAlbums).toHaveBeenCalledWith(country, 25);
+    TestBed.inject(CountryService).set('gh');
+    fixture.detectChanges();
+    TestBed.flushEffects();
+    fixture.detectChanges();
+    expect(charts.topSongs).toHaveBeenCalledWith('gh', 25);
+  });
+
+  it('shows chart shelves with the Apple Music credit', () => {
     const { el } = setup();
-    expect(el.querySelectorAll('.quick button').length).toBe(3);
+    const songs = [...el.querySelectorAll('app-shelf')].find((x) => x.querySelector('h2')?.textContent?.startsWith('Top songs in'));
+    expect(songs?.querySelectorAll('app-media-card').length).toBe(7);
+    expect(songs?.textContent).toContain('Charts from Apple Music');
+  });
+
+  it('playing a chart song plays the chart from that index', () => {
+    const { el, player } = setup();
+    const shelfEl = [...el.querySelectorAll('app-shelf')].find((s) => s.querySelector('h2')?.textContent?.startsWith('Top songs in'))!;
+    (shelfEl.querySelectorAll('button.play')[2] as HTMLButtonElement).click();
+    expect(player.playTracks).toHaveBeenCalledWith(CHART, 2);
+  });
+
+  it('global shelf is hidden without Last.fm entries', () => {
+    const { shelf } = setup();
+    expect(shelf('Global top songs')).toBeFalsy();
+  });
+
+  it('global shelf click resolves via findSong and plays', () => {
+    const { shelf, catalog, player } = setup({ global: [{ name: 'Hit c1', artist: 'Artist', image: null }] });
+    (shelf('Global top songs')!.querySelector('button.play') as HTMLButtonElement).click();
+    expect(catalog.findSong).toHaveBeenCalledWith('Artist', 'Hit c1');
+    expect(player.playTracks).toHaveBeenCalledWith([CHART[0]], 0);
+  });
+
+  it('global shelf click with no Apple match shows a toast and does nothing', () => {
+    const { shelf, catalog, player } = setup({ global: [{ name: 'Nope', artist: 'Nobody', image: null }] });
+    catalog.findSong.and.returnValue(of(null));
+    (shelf('Global top songs')!.querySelector('button.play') as HTMLButtonElement).click();
+    expect(TestBed.inject(ToastService).message()).toBe("Couldn't find this on Apple Music");
+    expect(player.playTracks).not.toHaveBeenCalled();
+  });
+
+  it('labels the Audius section', () => {
+    const { el } = setup();
+    expect(el.textContent).toContain('Independent on Audius');
   });
 
   it('shows a Liked songs tile only when there are liked songs', () => {
