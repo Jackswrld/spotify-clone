@@ -4,7 +4,7 @@
 import { createChartFetcher, isValidChart } from './charts.mjs';
 import { createMatchCache, exactKey, matchSong, songKey } from './youtube.mjs';
 
-const DEV_ORIGINS = ['http://localhost:4300'];
+const DEV_ORIGINS = ['http://localhost:4300', 'http://127.0.0.1:4300'];
 const MATCH_LIMIT_PER_MINUTE = 30;
 
 function send(res, status, body, origin) {
@@ -44,6 +44,11 @@ export function createRelay({ fetch, env, now = Date.now, cacheFile }) {
     const parts = url.pathname.split('/').filter(Boolean); // ['api', ...]
 
     try {
+      // Another website open in the browser must not spend the YouTube quota. Requests with no
+      // Origin (the dev proxy, curl) are allowed; browsers always label cross-site ones.
+      if ((origin && !DEV_ORIGINS.includes(origin)) || req.headers['sec-fetch-site'] === 'cross-site') {
+        return send(res, 403, { error: 'forbidden' }, undefined);
+      }
       if (req.method === 'OPTIONS') return send(res, 204, {}, origin);
 
       if (req.method === 'GET' && url.pathname === '/api/health') {

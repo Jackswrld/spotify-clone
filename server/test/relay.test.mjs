@@ -64,3 +64,25 @@ test('unknown route is 404', async () => {
   assert.equal((await relay.get('/api/nope')).status, 404);
   await relay.close();
 });
+
+test('requests from other websites are refused before any upstream call', async () => {
+  const fetch = fakeFetch({ [APPLE]: () => ({ body: feed }) });
+  const relay = await startRelay({ fetch, env: { YOUTUBE_API_KEY: 'k' } });
+  try {
+  const match = '/api/youtube/match?artist=Rema&title=Calm%20Down';
+  const evil = { origin: 'http://evil.test' };
+  const crossSite = { 'sec-fetch-site': 'cross-site' };
+  for (const headers of [evil, crossSite]) {
+    assert.equal((await relay.get(match, headers)).status, 403);
+    assert.equal((await relay.request(match, { method: 'DELETE', headers })).status, 403);
+    assert.equal((await relay.get('/api/charts/us/songs/10', headers)).status, 403);
+  }
+  assert.equal(fetch.calls.length, 0);
+  // The app itself (directly, or through the dev proxy with no Origin) still works.
+  assert.equal((await relay.get('/api/charts/us/songs/10', { origin: 'http://localhost:4300' })).status, 200);
+  assert.equal((await relay.get('/api/charts/us/songs/10', { 'sec-fetch-site': 'same-origin' })).status, 200);
+  assert.equal((await relay.get('/api/health')).status, 200);
+  } finally {
+    await relay.close();
+  }
+});
