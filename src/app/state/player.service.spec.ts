@@ -1,47 +1,27 @@
 import { TestBed } from '@angular/core/testing';
-import { Injectable, effect } from '@angular/core';
+import { Injectable, effect, signal } from '@angular/core';
 import { PlayerService, RANDOM } from './player.service';
 import { AudiusApi } from '../core/api/audius-api';
 import { Track } from '../core/models';
 import { makeTrack } from '../core/testing/make-track';
-
-/** Minimal stand-in for HTMLAudioElement. */
-class FakeAudio {
-  src = '';
-  currentTime = 0;
-  duration = NaN;
-  volume = 1;
-  muted = false;
-  paused = true;
-  preload = '';
-  private listeners = new Map<string, ((e: Event) => void)[]>();
-
-  play(): Promise<void> {
-    this.paused = false;
-    return Promise.resolve();
-  }
-  pause(): void {
-    this.paused = true;
-  }
-  load(): void {}
-  addEventListener(type: string, fn: (e: Event) => void): void {
-    this.listeners.set(type, [...(this.listeners.get(type) ?? []), fn]);
-  }
-  removeAttribute(name: string): void {
-    if (name === 'src') this.src = '';
-  }
-  dispatch(type: string): void {
-    (this.listeners.get(type) ?? []).forEach((fn) => fn(new Event(type)));
-  }
-}
+import { FakeAudio } from './testing/fake-audio';
+import { FakeEngine } from './testing/fake-yt';
+import { Engine } from './engines/engine';
+import { VideoDockService } from './video-dock.service';
 
 let lastAudio: FakeAudio;
+let yt: FakeEngine;
+const canShow = signal(true);
 
 @Injectable()
 class TestPlayer extends PlayerService {
   protected override createAudio(): HTMLAudioElement {
     lastAudio = new FakeAudio();
     return lastAudio as unknown as HTMLAudioElement;
+  }
+  protected override createYouTubeEngine(): Engine {
+    yt = new FakeEngine('catalog');
+    return yt;
   }
 }
 
@@ -53,6 +33,7 @@ function setup(random = () => 0) {
       { provide: PlayerService, useClass: TestPlayer },
       { provide: RANDOM, useValue: random },
       { provide: AudiusApi, useValue: { streamUrl: (id: string) => `stream:${id}` } },
+      { provide: VideoDockService, useValue: { canShow } },
     ],
   });
   return TestBed.inject(PlayerService);
@@ -62,7 +43,10 @@ const ids = (list: Track[]) => list.map((t) => t.id);
 const flush = () => new Promise((r) => setTimeout(r));
 
 describe('PlayerService', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    canShow.set(true);
+  });
   afterEach(() => localStorage.clear());
 
   it('playTracks sets queue, index and src', () => {
@@ -377,6 +361,13 @@ describe('PlayerService', () => {
     }).not.toThrow();
   });
 
+  it('reads recently played items without source as audius', () => {
+    const { source, ...old } = makeTrack('old');
+    void source;
+    localStorage.setItem('player.recent', JSON.stringify([old]));
+    expect(setup().recentlyPlayed()[0].source).toBe('audius');
+  });
+
   it('ignores recently played data of the wrong shape', () => {
     localStorage.setItem('player.recent', '{}');
     expect(setup().recentlyPlayed()).toEqual([]);
@@ -424,5 +415,128 @@ describe('PlayerService', () => {
     p.seek(500);
     expect(lastAudio.currentTime).toBe(200);
     expect(p.time()).toBe(200);
+  });
+
+  describe('with catalog (YouTube) songs', () => {
+    const C = ['c1', 'c2'].map((id) =>
+      makeTrack(`apple:${id}`, { source: 'catalog', appleId: id, title: `Hit ${id}` }),
+    );
+    const MIX = [T[0], C[0], T[1]];
+
+    it('switches engines by source and unloads the other one', () => {
+      const p = setup();
+      p.playTracks(MIX, 0);
+      expect(lastAudio.src).toBe('stream:1');
+      p.next();
+      expect(yt.calls).toContain('load:apple:c1:play');
+      expect(lastAudio.src).toBe(''); // audio engine unloaded
+      p.next();
+      expect(yt.calls).toContain('unload');
+      expect(lastAudio.src).toBe('stream:2');
+    });
+
+    it('ignores late events from the previous engine after a switch', () => {
+      const p = setup();
+      p.playTracks(MIX, 1);
+      p.next(); // back to audio for track 2
+      yt.emit({ type: 'ended' });
+      yt.emit({ type: 'error', kind: 'stream' });
+      expect(p.current()?.id).toBe('2');
+      expect(p.error()).toBeNull();
+    });
+
+    it('loads a catalog song paused with a notice when the dock cannot show', () => {
+      const p = setup();
+      p.playTracks(MIX, 0);
+      lastAudio.dispatch('playing');
+      canShow.set(false); // e.g. the tab is hidden
+      lastAudio.dispatch('ended');
+      expect(p.current()?.id).toBe('apple:c1');
+      expect(yt.calls).toContain('load:apple:c1:cue');
+      expect(p.isPlaying()).toBeFalse();
+      expect(p.notice()).toBe('Tap play to keep listening — this song plays via YouTube');
+      expect(p.error()).toBeNull();
+    });
+
+    it('pressing play while the dock cannot show keeps it paused with the notice', () => {
+      const p = setup();
+      canShow.set(false);
+      p.playTracks([C[0]], 0);
+      p.toggle();
+      expect(yt.calls.filter((c) => c === 'play').length).toBe(0);
+      expect(p.isPlaying()).toBeFalse();
+    });
+
+    it('pauses when the page hides and resumes on return only if the user still wanted it playing', () => {
+      const p = setup();
+      p.playTracks([C[0]], 0);
+      yt.emit({ type: 'playing' });
+      canShow.set(false);
+      TestBed.flushEffects();
+      expect(yt.calls).toContain('pause');
+      canShow.set(true);
+      TestBed.flushEffects();
+      expect(yt.calls.filter((c) => c === 'play').length).toBe(1);
+
+      yt.emit({ type: 'playing' });
+      p.toggle(); // the user pauses
+      yt.emit({ type: 'paused' });
+      canShow.set(false);
+      TestBed.flushEffects();
+      canShow.set(true);
+      TestBed.flushEffects();
+      expect(yt.calls.filter((c) => c === 'play').length).toBe(1);
+    });
+
+    it('no-match skips with a message and counts toward the cap', () => {
+      const p = setup();
+      p.playTracks([C[0], C[1], T[0]], 0);
+      yt.emit({ type: 'error', kind: 'no-match' });
+      expect(p.error()).toBe(`Couldn't find "Hit c1" on YouTube.`);
+      expect(p.current()?.id).toBe('apple:c2');
+      yt.emit({ type: 'error', kind: 'no-match' });
+      expect(p.current()?.id).toBe('1');
+    });
+
+    it('quota stops without skipping and does not count', () => {
+      const p = setup();
+      p.playTracks([C[0], C[1]], 0);
+      yt.emit({ type: 'error', kind: 'quota' });
+      expect(p.error()).toBe("YouTube's daily search limit is used up; try again tomorrow.");
+      expect(p.current()?.id).toBe('apple:c1');
+      expect(p.isPlaying()).toBeFalse();
+    });
+
+    it('offline stops with the server message', () => {
+      const p = setup();
+      p.playTracks([C[0], C[1]], 0);
+      yt.emit({ type: 'error', kind: 'offline' });
+      expect(p.error()).toBe("Can't reach the music server.");
+      expect(p.current()?.id).toBe('apple:c1');
+    });
+
+    it('a missing YouTube key stops with the setup message', () => {
+      const p = setup();
+      p.playTracks([C[0], C[1]], 0);
+      yt.emit({ type: 'error', kind: 'not-set-up' });
+      expect(p.error()).toBe("YouTube playback isn't set up.");
+      expect(p.current()?.id).toBe('apple:c1');
+      expect(p.isPlaying()).toBeFalse();
+    });
+
+    it('blocked is a pause, not an error', () => {
+      const p = setup();
+      p.playTracks([C[0]], 0);
+      yt.emit({ type: 'blocked' });
+      expect(p.isPlaying()).toBeFalse();
+      expect(p.error()).toBeNull();
+    });
+
+    it('volume applies to both engines', () => {
+      const p = setup();
+      p.setVolume(0.25);
+      expect(yt.calls).toContain('volume:0.25');
+      expect(lastAudio.volume).toBe(0.25);
+    });
   });
 });

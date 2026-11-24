@@ -4,6 +4,8 @@ import { of, tap } from 'rxjs';
 const TRENDING_TTL_MS = 3 * 60_000;
 const DEFAULT_TTL_MS = 10 * 60_000;
 
+const NEVER_CACHE = ['/api/health', '/api/youtube'];
+
 const cache = new Map<string, { expires: number; response: HttpResponse<unknown> }>();
 
 /** Test helper; also useful if the app ever needs a hard refresh. */
@@ -14,6 +16,8 @@ export function clearHttpCache(): void {
 /** In-memory, per-session cache for GET requests. Keeps the app inside API rate limits. */
 export const httpCacheInterceptor: HttpInterceptorFn = (req, next) => {
   if (req.method !== 'GET') return next(req);
+  // Live status and YouTube matches must never be served stale (e.g. a 'quota' answer).
+  if (NEVER_CACHE.some((prefix) => req.url.startsWith(prefix))) return next(req);
 
   const key = req.urlWithParams;
   const hit = cache.get(key);

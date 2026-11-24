@@ -1,0 +1,7 @@
+@use 'page-header';
+
+@include page-header.styles;
+
+.header {
+  min-height: 280px;
+}

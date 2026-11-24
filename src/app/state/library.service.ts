@@ -1,5 +1,5 @@
 import { Injectable, Signal, computed, signal } from '@angular/core';
-import { Artist, Playlist, Track, UserPlaylist } from '../core/models';
+import { Album, Artist, Playlist, Track, UserPlaylist, upgradeSource } from '../core/models';
 import { safeStorage } from './safe-storage';
 
 const KEYS = {
@@ -7,6 +7,7 @@ const KEYS = {
   savedPlaylists: 'library.savedPlaylists',
   savedArtists: 'library.savedArtists',
   myPlaylists: 'library.myPlaylists',
+  savedAlbums: 'library.savedAlbums',
 } as const;
 
 const MAX_NAME = 100;
@@ -25,16 +26,20 @@ function newId(): string {
 /** The user's library, kept in this browser: likes, saves and their own playlists. */
 @Injectable({ providedIn: 'root' })
 export class LibraryService {
-  private readonly _liked = signal<Track[]>(loadArray(KEYS.liked));
+  private readonly _liked = signal<Track[]>(loadArray<Track>(KEYS.liked).map(upgradeSource));
   private readonly _savedPlaylists = signal<Playlist[]>(loadArray(KEYS.savedPlaylists));
-  private readonly _savedArtists = signal<Artist[]>(loadArray(KEYS.savedArtists));
+  private readonly _savedAlbums = signal<Album[]>(loadArray<Album>(KEYS.savedAlbums));
+  private readonly _savedArtists = signal<Artist[]>(loadArray<Artist>(KEYS.savedArtists).map(upgradeSource));
   private readonly _myPlaylists = signal<UserPlaylist[]>(
-    loadArray<UserPlaylist>(KEYS.myPlaylists).filter((p) => p && typeof p.id === 'string' && Array.isArray(p.tracks)),
+    loadArray<UserPlaylist>(KEYS.myPlaylists)
+      .filter((p) => p && typeof p.id === 'string' && Array.isArray(p.tracks))
+      .map((p) => ({ ...p, tracks: p.tracks.map(upgradeSource) })),
   );
 
   readonly likedTracks: Signal<Track[]> = this._liked.asReadonly();
   readonly savedPlaylists: Signal<Playlist[]> = this._savedPlaylists.asReadonly();
   readonly savedArtists: Signal<Artist[]> = this._savedArtists.asReadonly();
+  readonly savedAlbums: Signal<Album[]> = this._savedAlbums.asReadonly();
   readonly myPlaylists: Signal<UserPlaylist[]> = this._myPlaylists.asReadonly();
 
   private readonly likedIds = computed(() => new Set(this._liked().map((t) => t.id)));
@@ -72,6 +77,17 @@ export class LibraryService {
       this.isArtistSaved(artist.id) ? list.filter((a) => a.id !== artist.id) : [artist, ...list],
     );
     safeStorage.set(KEYS.savedArtists, this._savedArtists());
+  }
+
+  isAlbumSaved(id: string): boolean {
+    return this._savedAlbums().some((a) => a.id === id);
+  }
+
+  toggleAlbumSave(album: Album): void {
+    this._savedAlbums.update((list) =>
+      this.isAlbumSaved(album.id) ? list.filter((a) => a.id !== album.id) : [album, ...list],
+    );
+    safeStorage.set(KEYS.savedAlbums, this._savedAlbums());
   }
 
   // ---- Your playlists ----------------------------------------------------

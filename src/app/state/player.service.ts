@@ -1,7 +1,11 @@
-import { Injectable, InjectionToken, Signal, computed, effect, inject, signal } from '@angular/core';
+import { Injectable, InjectionToken, Signal, computed, effect, inject, signal, untracked } from '@angular/core';
 import { AudiusApi } from '../core/api/audius-api';
-import { Track } from '../core/models';
+import { Track, TrackSource, upgradeSource } from '../core/models';
 import { safeStorage } from './safe-storage';
+import { Engine, EngineEvent } from './engines/engine';
+import { AudioEngine } from './engines/audio-engine';
+import { YouTubeEngine } from './engines/youtube-engine';
+import { VideoDockService } from './video-dock.service';
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
@@ -14,6 +18,8 @@ const RECENT_MAX = 20;
 const MAX_CONSECUTIVE_ERRORS = 3;
 const RESTART_THRESHOLD_S = 3;
 
+export const NOTICE_TAP_TO_PLAY = 'Tap play to keep listening — this song plays via YouTube';
+
 interface Settings {
   volume: number;
   muted: boolean;
@@ -24,14 +30,19 @@ interface Settings {
 const DEFAULT_SETTINGS: Settings = { volume: 1, muted: false, shuffle: false, repeat: 'off' };
 
 /**
- * Owns the app's single audio element and the play queue. Components read its
- * signals and call its methods; nothing else touches the audio element.
+ * Owns the play queue and decides what plays. Sound comes from an Engine
+ * (AudioEngine for Audius; YouTubeEngine for catalog songs, added later).
+ * Components read its signals and call its methods; nothing else touches an engine.
  */
 @Injectable({ providedIn: 'root' })
 export class PlayerService {
   private readonly api = inject(AudiusApi);
   private readonly random = inject(RANDOM);
-  private readonly audio: HTMLAudioElement;
+  private readonly dock = inject(VideoDockService);
+  private readonly audioEngine: Engine;
+  private readonly youTubeEngine: Engine;
+  /** The engine for the current track; events from any other engine are ignored. */
+  private active: Engine;
 
   private readonly _queue = signal<Track[]>([]);
   private readonly _index = signal(-1);
@@ -44,11 +55,15 @@ export class PlayerService {
   private readonly _shuffle: ReturnType<typeof signal<boolean>>;
   private readonly _repeat: ReturnType<typeof signal<RepeatMode>>;
   private readonly _error = signal<string | null>(null);
-  private readonly _recent = signal<Track[]>(safeStorage.getArray<Track>(RECENT_KEY));
+  /** Informational message (not an error; never counts toward the error cap). */
+  private readonly _notice = signal<string | null>(null);
+  private readonly _recent = signal<Track[]>(safeStorage.getArray<Track>(RECENT_KEY).map(upgradeSource));
 
   /** Queue order before shuffle was turned on; used to restore it. */
   private originalQueue: Track[] = [];
   private consecutiveErrors = 0;
+  /** The user wants music playing (set by play actions, cleared by a user pause). */
+  private wantsPlay = false;
 
   readonly queue: Signal<Track[]> = this._queue.asReadonly();
   readonly index: Signal<number> = this._index.asReadonly();
@@ -63,6 +78,7 @@ export class PlayerService {
   readonly shuffle: Signal<boolean>;
   readonly repeat: Signal<RepeatMode>;
   readonly error: Signal<string | null> = this._error.asReadonly();
+  readonly notice: Signal<string | null> = this._notice.asReadonly();
   readonly recentlyPlayed: Signal<Track[]> = this._recent.asReadonly();
 
   constructor() {
@@ -78,12 +94,13 @@ export class PlayerService {
     this.shuffle = this._shuffle.asReadonly();
     this.repeat = this._repeat.asReadonly();
 
-    this.audio = this.createAudio();
-    this.audio.preload = 'auto';
-    this.audio.volume = this._volume();
-    this.audio.muted = this._muted();
-    this.listen();
+    this.audioEngine = new AudioEngine(this.createAudio(), (id) => this.api.streamUrl(id));
+    this.youTubeEngine = this.createYouTubeEngine();
+    this.active = this.audioEngine;
+    this.attach(this.audioEngine);
+    this.attach(this.youTubeEngine);
     this.setUpMediaSession();
+    this.followVideoVisibility();
   }
 
   /** Overridden in tests with a fake element. */
@@ -91,11 +108,35 @@ export class PlayerService {
     return new Audio();
   }
 
+  /** Overridden in tests with a fake engine. */
+  protected createYouTubeEngine(): Engine {
+    return inject(YouTubeEngine);
+  }
+
+  /** The engine that plays tracks from this source. */
+  protected engineFor(source: TrackSource): Engine {
+    return source === 'catalog' ? this.youTubeEngine : this.audioEngine;
+  }
+
+  /** Every engine shares volume/mute and reports into the same handler. */
+  protected attach(engine: Engine): void {
+    engine.setVolume(this._volume());
+    engine.setMuted(this._muted());
+    engine.events.subscribe((event) => {
+      if (engine === this.active) this.onEngineEvent(event);
+    });
+  }
+
+  private allEngines(): Engine[] {
+    return [this.audioEngine, this.youTubeEngine];
+  }
+
   // ---- Queue -------------------------------------------------------------
 
   playTracks(tracks: Track[], startIndex = 0): void {
     if (!tracks.length) return;
     this.resetErrors(); // the user chose something new: give it a fresh start
+    this.wantsPlay = true;
     const start = Math.min(Math.max(startIndex, 0), tracks.length - 1);
     this.originalQueue = [...tracks];
     if (this._shuffle()) {
@@ -112,6 +153,7 @@ export class PlayerService {
   playAt(queueIndex: number): void {
     if (queueIndex < 0 || queueIndex >= this._queue().length) return;
     this.resetErrors();
+    this.wantsPlay = true;
     this.load(queueIndex);
   }
 
@@ -178,14 +220,17 @@ export class PlayerService {
 
   toggle(): void {
     if (!this.current()) return;
-    if (this.audio.error) {
-      // The element is stuck after a failed load; reload the track instead of calling play().
+    if (this.active.hasFailed()) {
+      // The engine is stuck after a failed load; reload the track instead of calling play().
       this.resetErrors();
+      this.wantsPlay = true;
       this.load(this._index());
-    } else if (this.audio.paused) {
+    } else if (this.active.isPaused()) {
+      this.wantsPlay = true;
       this.play();
     } else {
-      this.audio.pause();
+      this.wantsPlay = false;
+      this.active.pause();
     }
   }
 
@@ -208,7 +253,7 @@ export class PlayerService {
     const duration = this._duration();
     const max = Number.isFinite(duration) && duration > 0 ? duration : Infinity;
     const value = Math.min(Math.max(0, seconds), max);
-    this.audio.currentTime = value;
+    this.active.seek(value);
     this._time.set(value);
     this.updatePositionState();
   }
@@ -216,14 +261,14 @@ export class PlayerService {
   setVolume(v: number): void {
     const value = clamp01(v);
     this._volume.set(value);
-    this.audio.volume = value;
+    for (const e of this.allEngines()) e.setVolume(value);
     if (value > 0 && this._muted()) this.toggleMute();
     this.saveSettings();
   }
 
   toggleMute(): void {
     this._muted.update((m) => !m);
-    this.audio.muted = this._muted();
+    for (const e of this.allEngines()) e.setMuted(this._muted());
     this.saveSettings();
   }
 
@@ -261,33 +306,62 @@ export class PlayerService {
   private load(index: number): void {
     const track = this._queue()[index];
     if (!track) return;
+    const engine = this.engineFor(track.source);
+    if (engine !== this.active) {
+      this.active.unload();
+      this.active = engine;
+    }
     this._index.set(index);
     this._time.set(0);
     this._duration.set(track.duration);
-    this.audio.src = this.api.streamUrl(track.id);
-    this.play();
+    // YouTube rules: never start a video the user can't see. Load it paused instead.
+    const autoplay = !this.mustStayPaused(track);
+    this._isPlaying.set(autoplay);
+    if (!autoplay) this.tellTapToPlay();
+    engine.load(track, autoplay);
   }
 
   private play(): void {
-    this._isPlaying.set(true);
-    let result: Promise<void> | undefined;
-    try {
-      result = this.audio.play();
-    } catch {
-      result = undefined;
-    }
-    result?.catch((err: unknown) => {
-      const name = (err as { name?: string })?.name;
-      if (name === 'AbortError') return; // superseded by a newer load; not a failure
-      // Autoplay blocked, no usable source, etc.: show Play again. Stream failures also
-      // surface through the element's 'error' event, which handles skipping.
+    const track = this.current();
+    if (track && this.mustStayPaused(track)) {
       this._isPlaying.set(false);
+      this.tellTapToPlay();
+      return;
+    }
+    this._isPlaying.set(true);
+    this.active.play();
+  }
+
+  /** Catalog songs play through a visible YouTube player only. */
+  private mustStayPaused(track: Track): boolean {
+    return track.source === 'catalog' && !this.dock.canShow();
+  }
+
+  private tellTapToPlay(): void {
+    this._notice.set(null);
+    this._notice.set(NOTICE_TAP_TO_PLAY);
+  }
+
+  /** Pause YouTube when its player can't be seen; resume when it can, if the user still wants music. */
+  private followVideoVisibility(): void {
+    effect(() => {
+      const visible = this.dock.canShow();
+      untracked(() => {
+        const track = this.current();
+        if (track?.source !== 'catalog') return;
+        if (!visible && this._isPlaying()) {
+          this.active.pause();
+          this._isPlaying.set(false);
+        } else if (visible && this.wantsPlay && !this._isPlaying() && !this.active.hasFailed()) {
+          this.play();
+        }
+      });
     });
   }
 
   private stop(): void {
-    this.audio.pause();
-    this.audio.currentTime = 0;
+    this.active.pause();
+    this.active.seek(0);
     this._time.set(0);
     this._isPlaying.set(false);
     this._isBuffering.set(false);
@@ -295,43 +369,64 @@ export class PlayerService {
 
   private reset(): void {
     this.stop();
-    this.audio.removeAttribute('src');
+    this.active.unload();
     this._queue.set([]);
     this.originalQueue = [];
     this._index.set(-1);
   }
 
-  private listen(): void {
-    const a = this.audio;
-    a.addEventListener('playing', () => {
-      this._isPlaying.set(true);
-      this._isBuffering.set(false);
-      this.consecutiveErrors = 0;
-      this._error.set(null);
-      this.remember(this.current());
-    });
-    a.addEventListener('pause', () => this._isPlaying.set(false));
-    a.addEventListener('waiting', () => this._isBuffering.set(true));
-    a.addEventListener('canplay', () => this._isBuffering.set(false));
-    a.addEventListener('timeupdate', () => this._time.set(a.currentTime));
-    const onDuration = () => {
-      if (Number.isFinite(a.duration) && a.duration > 0) this._duration.set(a.duration);
-      this.updatePositionState();
-    };
-    a.addEventListener('loadedmetadata', onDuration);
-    a.addEventListener('durationchange', onDuration);
-    a.addEventListener('ended', () => {
-      if (this._repeat() === 'one') {
-        this.seek(0);
-        this.play();
-      } else {
-        this.next();
-      }
-    });
-    a.addEventListener('error', () => this.onError());
+  private onEngineEvent(event: EngineEvent): void {
+    switch (event.type) {
+      case 'playing':
+        this._isPlaying.set(true);
+        this._isBuffering.set(false);
+        this.consecutiveErrors = 0;
+        this._error.set(null);
+        this.remember(this.current());
+        break;
+      case 'paused':
+      case 'blocked': // autoplay refused: show Play, no message
+        this._isPlaying.set(false);
+        break;
+      case 'waiting':
+        this._isBuffering.set(true);
+        break;
+      case 'canplay':
+        this._isBuffering.set(false);
+        break;
+      case 'time':
+        this._time.set(event.time);
+        if (Number.isFinite(event.duration) && event.duration > 0 && event.duration !== this._duration()) {
+          this._duration.set(event.duration);
+          this.updatePositionState();
+        }
+        break;
+      case 'ended':
+        if (this._repeat() === 'one') {
+          this.seek(0);
+          this.play();
+        } else {
+          this.next();
+        }
+        break;
+      case 'error':
+        if (event.kind === 'quota') {
+          this.announce("YouTube's daily search limit is used up; try again tomorrow.");
+          this.stop();
+        } else if (event.kind === 'offline') {
+          this.announce("Can't reach the music server.");
+          this.stop();
+        } else if (event.kind === 'not-set-up') {
+          this.announce("YouTube playback isn't set up.");
+          this.stop();
+        } else {
+          this.onError(event.kind);
+        }
+        break;
+    }
   }
 
-  private onError(): void {
+  private onError(kind: 'stream' | 'no-match' = 'stream'): void {
     const track = this.current();
     if (!track) return;
     this.consecutiveErrors++;
@@ -340,7 +435,9 @@ export class PlayerService {
       this.stop();
       return;
     }
-    this.announce(`Couldn't play "${track.title}". Skipping.`);
+    this.announce(
+      kind === 'no-match' ? `Couldn't find "${track.title}" on YouTube.` : `Couldn't play "${track.title}". Skipping.`,
+    );
     const isLast = this._index() >= this._queue().length - 1;
     if (isLast && this._repeat() !== 'all') this.stop();
     else this.next();
@@ -391,7 +488,7 @@ export class PlayerService {
     const session = navigator.mediaSession;
     const handlers: [MediaSessionAction, MediaSessionActionHandler][] = [
       ['play', () => this.play()],
-      ['pause', () => this.audio.pause()],
+      ['pause', () => this.active.pause()],
       ['previoustrack', () => this.previous()],
       ['nexttrack', () => this.next()],
       ['seekto', (d) => d.seekTime != null && this.seek(d.seekTime)],

@@ -52,6 +52,8 @@ export function toTrack(raw: Raw): Track {
     repostCount: Number(raw['repost_count'] ?? 0),
     releaseDate: raw['release_date'] ?? null,
     permalink: raw['permalink'] ?? '',
+    source: 'audius',
+    appleId: null,
   };
 }
 
@@ -68,6 +70,7 @@ export function toArtist(raw: Raw): Artist {
     avatar: toArtwork(raw['profile_picture']),
     coverPhoto: raw['cover_photo']?.['640x'] ?? null,
     permalink: '/' + (raw['handle'] ?? ''),
+    source: 'audius',
   };
 }
 
@@ -83,5 +86,6 @@ export function toPlaylist(raw: Raw): Playlist {
     ownerId: String(user['id'] ?? ''),
     ownerName: user['name'] ?? '',
     permalink: raw['permalink'] ?? '',
+    source: 'audius',
   };
 }

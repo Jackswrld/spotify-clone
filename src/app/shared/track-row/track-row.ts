@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, output } from '@angular/core';
+import { artistLink, trackLink } from '../../core/links';
 import { RouterLink } from '@angular/router';
 import { Track } from '../../core/models';
 import { PlayerService } from '../../state/player.service';
@@ -20,6 +21,8 @@ export interface TrackMenuEvent {
   styleUrl: './track-row.scss',
 })
 export class TrackRow {
+  protected readonly trackLink = trackLink;
+  protected readonly artistLink = artistLink;
   private readonly player = inject(PlayerService);
   private readonly trackMenu = inject(TrackMenuService);
 

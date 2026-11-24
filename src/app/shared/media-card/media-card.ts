@@ -8,7 +8,7 @@ import { Cover } from '../cover/cover';
   imports: [RouterLink, Cover],
   template: `
     <div class="card">
-      <a class="link" [routerLink]="link()">
+      <a class="link" [routerLink]="link()" [queryParams]="queryParams()">
         <app-cover [src]="image()" [seed]="seed()" [round]="round()" [alt]="''" />
         <span class="title">{{ title() }}</span>
         @if (subtitle()) {
@@ -110,6 +110,7 @@ export class MediaCard {
   readonly seed = input('');
   readonly round = input(false);
   readonly link = input.required<unknown[] | string>();
+  readonly queryParams = input<Record<string, string> | null>(null);
   readonly playable = input(true);
   readonly play = output<void>();
 }

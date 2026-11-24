@@ -27,6 +27,7 @@ const artist: Artist = {
   avatar: { small: null, medium: null, large: null },
   coverPhoto: null,
   permalink: '/xsetra',
+  source: 'audius',
 };
 
 function fresh(): LibraryService {
@@ -133,6 +134,32 @@ describe('LibraryService', () => {
     expect(lib.likedTracks().map((t) => t.id)).toEqual(['1']);
     expect(lib.isLiked('1')).toBeTrue();
     expect(lib.savedArtists()).toEqual([]);
+  });
+
+  it('reads saved items without source as audius', () => {
+    const { source, ...old } = makeTrack('1');
+    void source;
+    localStorage.setItem('library.liked', JSON.stringify([old]));
+    localStorage.setItem('library.savedArtists', JSON.stringify([{ id: 'a1', name: 'Old Artist' }]));
+    const lib = fresh();
+    expect(lib.likedTracks()[0].source).toBe('audius');
+    expect(lib.savedArtists()[0].source).toBe('audius');
+  });
+
+  it('saves albums, persists them and ignores malformed entries', () => {
+    const album = {
+      id: 'apple:77', appleId: '77', name: 'E-Mortal Boy', artistName: 'Rema', artistId: 'apple:9',
+      artwork: { small: null, medium: null, large: null }, releaseDate: null, trackCount: 7, genre: null, appleUrl: '',
+    };
+    let lib = fresh();
+    lib.toggleAlbumSave(album);
+    expect(lib.isAlbumSaved('apple:77')).toBeTrue();
+    lib = fresh();
+    expect(lib.savedAlbums().map((a) => a.name)).toEqual(['E-Mortal Boy']);
+    lib.toggleAlbumSave(album);
+    expect(lib.savedAlbums()).toEqual([]);
+    localStorage.setItem('library.savedAlbums', JSON.stringify([null, { name: 'no id' }]));
+    expect(fresh().savedAlbums()).toEqual([]);
   });
 
   it('keeps working in memory when setItem throws (quota)', () => {

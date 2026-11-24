@@ -47,3 +47,7 @@ Thumbs.db
 
 # Local preview config
 /.claude/launch.json
+
+# Music relay secrets and cache
+/server/.env
+/server/data/

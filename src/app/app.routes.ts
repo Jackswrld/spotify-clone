@@ -9,6 +9,12 @@ export const routes: Routes = [
   { path: 'playlist/:id', loadComponent: () => import('./pages/playlist/playlist').then((m) => m.PlaylistPage) },
   { path: 'my-playlist/:id', loadComponent: () => import('./pages/my-playlist/my-playlist').then((m) => m.MyPlaylistPage) },
   { path: 'library', loadComponent: () => import('./pages/library/library').then((m) => m.LibraryPage) },
+  { path: 'song/:appleId', loadComponent: () => import('./pages/song/song').then((m) => m.SongPage) },
+  { path: 'album/:appleId', loadComponent: () => import('./pages/album/album').then((m) => m.AlbumPage) },
+  {
+    path: 'catalog-artist/:appleId',
+    loadComponent: () => import('./pages/catalog-artist/catalog-artist').then((m) => m.CatalogArtistPage),
+  },
   { path: 'lyrics', loadComponent: () => import('./pages/lyrics/lyrics').then((m) => m.LyricsPage) },
   { path: '**', redirectTo: 'home' },
 ];

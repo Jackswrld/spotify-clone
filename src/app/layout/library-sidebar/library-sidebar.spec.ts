@@ -2,12 +2,19 @@ import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { LibrarySidebar } from './library-sidebar';
 import { LibraryService } from '../../state/library.service';
+import { signal } from '@angular/core';
+import { RelayStatusService } from '../../core/api/relay-status';
 import { makeTrack } from '../../core/testing/make-track';
 import { makeArtist } from '../../pages/testing/page-test-helpers';
 import { FakeMedia, installFakeMatchMedia } from '../../state/testing-media';
 
+const youtubeReady = signal(true);
+
 function setup() {
-  TestBed.configureTestingModule({ imports: [LibrarySidebar], providers: [provideRouter([])] });
+  TestBed.configureTestingModule({
+    imports: [LibrarySidebar],
+    providers: [provideRouter([]), { provide: RelayStatusService, useValue: { youtubeReady } }],
+  });
   const library = TestBed.inject(LibraryService);
   const fixture = TestBed.createComponent(LibrarySidebar);
   fixture.detectChanges();
@@ -82,5 +89,35 @@ describe('LibrarySidebar', () => {
     media.setWidth(900);
     const { el } = setup();
     expect(el.querySelector('.sidebar')?.classList).toContain('collapsed');
+  });
+
+  it('lists saved albums under Playlists as "Album • artist", linking to the album page', () => {
+    const { fixture, library, chip, titles, el } = setup();
+    library.toggleAlbumSave({
+      id: 'apple:77', appleId: '77', name: 'E-Mortal Boy', artistName: 'Rema', artistId: 'apple:9',
+      artwork: { small: null, medium: null, large: null }, releaseDate: null, trackCount: 7, genre: null, appleUrl: '',
+    });
+    library.toggleArtistSave(makeArtist('apple:9', { name: 'Rema', source: 'catalog' }));
+    fixture.detectChanges();
+    chip('Playlists').click();
+    fixture.detectChanges();
+    expect(titles()).toEqual(['E-Mortal Boy']);
+    expect(el.textContent).toContain('Album • Rema');
+    expect(el.querySelector('a.item')?.getAttribute('href')).toBe('/album/77');
+    chip('Artists').click();
+    fixture.detectChanges();
+    expect(el.querySelector('a.item')?.getAttribute('href')).toBe('/catalog-artist/9');
+  });
+
+  it('footer says mainstream songs play via YouTube, or that YouTube is not set up', () => {
+    youtubeReady.set(true);
+    let s = setup();
+    expect(s.el.querySelector('.credit')?.textContent).toContain('Powered by Audius');
+    expect(s.el.querySelector('.credit')?.textContent).toContain('Mainstream songs play via YouTube');
+    TestBed.resetTestingModule();
+    youtubeReady.set(false);
+    s = setup();
+    expect(s.el.querySelector('.credit')?.textContent).toContain("YouTube playback isn't set up");
+    youtubeReady.set(true);
   });
 });

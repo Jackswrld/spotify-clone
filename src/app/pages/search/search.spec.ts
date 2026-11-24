@@ -8,6 +8,8 @@ import { PlayerService } from '../../state/player.service';
 import { Artist, Playlist, Track } from '../../core/models';
 import { makeTrack } from '../../core/testing/make-track';
 import { FakeMedia, installFakeMatchMedia } from '../../state/testing-media';
+import { CatalogApi } from '../../core/api/catalog-api';
+import { Album } from '../../core/models';
 
 function artist(id: string, name: string): Artist {
   return {
@@ -22,6 +24,7 @@ function artist(id: string, name: string): Artist {
     avatar: { small: null, medium: null, large: null },
     coverPhoto: null,
     permalink: '/' + name.toLowerCase(),
+    source: 'audius',
   };
 }
 
@@ -39,6 +42,11 @@ function setup() {
     searchArtists: jasmine.createSpy('searchArtists').and.callFake((q: string) => get(q).artists),
     searchPlaylists: jasmine.createSpy('searchPlaylists').and.callFake((q: string) => get(q).playlists),
   };
+  const catalog = {
+    searchSongs: jasmine.createSpy('searchSongs').and.returnValue(of([])),
+    searchArtists: jasmine.createSpy('searchArtists').and.returnValue(of([])),
+    searchAlbums: jasmine.createSpy('searchAlbums').and.returnValue(of([])),
+  };
   const player = { playTracks: jasmine.createSpy('playTracks'), current: signal(null), isPlaying: signal(false) };
   TestBed.configureTestingModule({
     imports: [SearchPage],
@@ -47,6 +55,7 @@ function setup() {
       { provide: ActivatedRoute, useValue: { queryParamMap: params.asObservable() } },
       { provide: AudiusApi, useValue: api },
       { provide: PlayerService, useValue: player },
+      { provide: CatalogApi, useValue: catalog },
     ],
   });
   const fixture = TestBed.createComponent(SearchPage);
@@ -67,6 +76,7 @@ function setup() {
     el,
     api,
     player,
+    catalog,
     respond,
     setQ: (q: string) => {
       params.next(convertToParamMap(q ? { q } : {}));
@@ -158,11 +168,14 @@ describe('SearchPage', () => {
   });
 
   it('shows an error with Retry when every search fails, and retry searches again', fakeAsync(() => {
-    const { setQ, el, fixture, api } = setup();
+    const { setQ, el, fixture, api, catalog } = setup();
     const fail = () => new Observable<never>((s) => s.error(new Error('offline')));
     api.searchTracks.and.callFake(fail);
     api.searchArtists.and.callFake(fail);
     api.searchPlaylists.and.callFake(fail);
+    catalog.searchSongs.and.callFake(fail);
+    catalog.searchArtists.and.callFake(fail);
+    catalog.searchAlbums.and.callFake(fail);
     setQ('beat');
     tick(300);
     fixture.detectChanges();
@@ -175,6 +188,62 @@ describe('SearchPage', () => {
     tick(300);
     fixture.detectChanges();
     expect(el.textContent).toContain('Back Online');
+  }));
+
+  it('All merges catalog songs then Audius songs without duplicates', fakeAsync(() => {
+    const { setQ, respond, el, catalog, fixture } = setup();
+    catalog.searchSongs.and.returnValue(
+      of([makeTrack('apple:1', { source: 'catalog', appleId: '1', title: 'Calm Down', artistName: 'Rema' })]),
+    );
+    setQ('calm');
+    tick(300);
+    respond('calm', {
+      tracks: [
+        makeTrack('a1', { title: 'Calm Down (feat. Selena Gomez)', artistName: 'Rema' }),
+        makeTrack('a2', { title: 'Calm Waters', artistName: 'Someone' }),
+      ],
+    });
+    fixture.detectChanges();
+    const titles = [...el.querySelectorAll('.songs app-track-row .title')].map((t) => t.textContent?.trim());
+    expect(titles).toEqual(['Calm Down', 'Calm Waters']);
+  }));
+
+  it('the Audius tab shows only Audius songs', fakeAsync(() => {
+    const { setQ, respond, el, catalog, fixture } = setup();
+    catalog.searchSongs.and.returnValue(of([makeTrack('apple:1', { source: 'catalog', appleId: '1', title: 'Mainstream' })]));
+    setQ('beat');
+    tick(300);
+    respond('beat', { tracks: [makeTrack('a2', { title: 'Indie' })] });
+    const tab = [...el.querySelectorAll('.song-tabs button')].find((b) => b.textContent?.trim() === 'Audius') as HTMLButtonElement;
+    tab.click();
+    fixture.detectChanges();
+    const titles = [...el.querySelectorAll('.songs app-track-row .title')].map((t) => t.textContent?.trim());
+    expect(titles).toEqual(['Indie']);
+  }));
+
+  it('Top result prefers an exact-name Apple artist over Audius', fakeAsync(() => {
+    const { setQ, respond, el, catalog } = setup();
+    catalog.searchArtists.and.returnValue(
+      of([{ ...artist('apple:9', 'Drake'), source: 'catalog' as const }]),
+    );
+    setQ('drake');
+    tick(300);
+    respond('drake', { artists: [artist('a1', 'Drake')] });
+    expect(el.querySelector('.top-result a')?.getAttribute('href')).toBe('/catalog-artist/9');
+  }));
+
+  it('shows albums from the Apple catalog', fakeAsync(() => {
+    const { setQ, respond, el, catalog } = setup();
+    const album: Album = {
+      id: 'apple:5', appleId: '5', name: 'E-Mortal Boy', artistName: 'Rema', artistId: 'apple:9',
+      artwork: { small: null, medium: null, large: null }, releaseDate: null, trackCount: 7, genre: null, appleUrl: '',
+    };
+    catalog.searchAlbums.and.returnValue(of([album]));
+    setQ('rema');
+    tick(300);
+    respond('rema', {});
+    const albums = el.querySelector('section[aria-label="Albums"]') as HTMLElement;
+    expect(albums.textContent).toContain('E-Mortal Boy');
   }));
 
   it('a failing search group still shows the others', fakeAsync(() => {

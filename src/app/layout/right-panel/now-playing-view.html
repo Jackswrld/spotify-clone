@@ -1,12 +1,16 @@
 @if (player.current(); as track) {
   <div class="view">
     @if (showHeader()) {
-      <app-cover class="art" [src]="track.artwork.medium" [seed]="track.id" [alt]="track.title" />
+      @if (track.source === 'catalog') {
+        <app-video-slot [priority]="2" />
+      } @else {
+        <app-cover class="art" [src]="track.artwork.medium" [seed]="track.id" [alt]="track.title" />
+      }
 
       <div class="title-row">
         <div class="meta">
-          <a class="title" [routerLink]="['/track', track.id]">{{ track.title }}</a>
-          <a class="artist-link" [routerLink]="['/artist', track.artistId]">{{ track.artistName }}</a>
+          <a class="title" [routerLink]="trackLink(track)">{{ track.title }}</a>
+          <a class="artist-link" [routerLink]="artistLink(track)">{{ track.artistName }}</a>
         </div>
         <app-like-button [track]="track" />
       </div>
@@ -41,7 +45,7 @@
     @if (artist.state().data; as a) {
       <section class="card about">
         <h3>About the artist</h3>
-        <a [routerLink]="['/artist', a.id]" class="about-head">
+        <a [routerLink]="artistLink(a)" class="about-head">
           <app-cover class="avatar" [src]="a.avatar.medium" [seed]="a.id" [round]="true" />
           <span>
             <span class="about-name">
@@ -50,7 +54,9 @@
                 <i class="fa-solid fa-circle-check verified" aria-label="Verified"></i>
               }
             </span>
-            <span class="about-followers">{{ formatCount(a.followerCount) }} followers</span>
+            @if (a.source !== 'catalog') {
+              <span class="about-followers">{{ formatCount(a.followerCount) }} followers</span>
+            }
           </span>
         </a>
         @if (shortBio(a.bio); as bio) {

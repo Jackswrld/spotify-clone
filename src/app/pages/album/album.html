@@ -1,0 +1,62 @@
+@let state = result.state();
+<div class="page">
+  @switch (state.status) {
+    @case ('loading') {
+      <div class="header"><app-skeleton shape="text" [count]="3" /></div>
+    }
+    @case ('error') {
+      @if (isNetworkError(state.error)) {
+        <app-error-state message="Couldn't load this album." (retry)="result.retry()" />
+      } @else {
+        <app-error-state message="This album isn't available." [showRetry]="false" />
+      }
+    }
+    @case ('ready') {
+      @let a = state.data.album;
+      @let tracks = state.data.tracks;
+      <header class="header" [style.background]="'linear-gradient(180deg, ' + headerColor() + ' 0%, var(--surface-1) 100%)'">
+        <app-cover class="header-art" [src]="a.artwork.large" [seed]="a.id" [alt]="a.name" />
+        <div class="header-text">
+          <span class="kind">{{ tracks.length === 1 ? 'Single' : 'Album' }}</span>
+          <h1>{{ a.name }}</h1>
+          <p class="stats-line">
+            <a [routerLink]="['/catalog-artist', appleIdOf(a.artistId)]">{{ a.artistName }}</a>
+            @if (year(a.releaseDate); as y) {
+              <span class="dot">{{ y }}</span>
+            }
+            <span class="dot">{{ tracks.length }} {{ tracks.length === 1 ? 'song' : 'songs' }}</span>
+          </p>
+        </div>
+      </header>
+
+      <div class="actions">
+        <button type="button" class="big-play" aria-label="Play" [disabled]="!tracks.length" (click)="play()">
+          <i class="fa-solid fa-play" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="action shuffle-play" aria-label="Shuffle play" [disabled]="!tracks.length" (click)="shufflePlay()">
+          <i class="fa-solid fa-shuffle" aria-hidden="true"></i>
+        </button>
+        <button
+          type="button"
+          class="action save"
+          [attr.aria-pressed]="saved()"
+          [attr.aria-label]="saved() ? 'Remove from Your Library' : 'Save to Your Library'"
+          (click)="toggleSave()"
+        >
+          <i [class]="saved() ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-plus'" aria-hidden="true"></i>
+        </button>
+        @if (a.appleUrl) {
+          <a class="external" [href]="a.appleUrl" target="_blank" rel="noopener">Listen on Apple Music</a>
+        }
+      </div>
+
+      <div class="body">
+        @for (t of tracks; track t.id; let i = $index) {
+          <app-track-row [track]="t" [index]="i" [showArtwork]="false" (play)="play(i)" />
+        } @empty {
+          <p class="prose">No songs found for this album.</p>
+        }
+      </div>
+    }
+  }
+</div>

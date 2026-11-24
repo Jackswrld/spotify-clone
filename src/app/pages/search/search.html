@@ -43,7 +43,7 @@
             <section class="top-result" aria-label="Top result">
               <h2>Top result</h2>
               @if (top.kind === 'artist') {
-                <a class="top-card" [routerLink]="['/artist', top.artist.id]">
+                <a class="top-card" [routerLink]="artistLink(top.artist)">
                   <app-cover class="top-art" [src]="top.artist.avatar.medium" [seed]="top.artist.id" [round]="true" />
                   <span class="top-name">{{ top.artist.name }}</span>
                   <span class="pill">Artist</span>
@@ -51,9 +51,9 @@
               } @else {
                 <div class="top-card">
                   <app-cover class="top-art" [src]="top.track.artwork.medium" [seed]="top.track.id" />
-                  <a class="top-name" [routerLink]="['/track', top.track.id]">{{ top.track.title }}</a>
+                  <a class="top-name" [routerLink]="trackLink(top.track)">{{ top.track.title }}</a>
                   <span class="top-sub"><span class="pill">Song</span> {{ top.track.artistName }}</span>
-                  <button type="button" class="top-play" [attr.aria-label]="'Play ' + top.track.title" (click)="playSong(top.index)">
+                  <button type="button" class="top-play" [attr.aria-label]="'Play ' + top.track.title" (click)="playTop(top.index)">
                     <i class="fa-solid fa-play" aria-hidden="true"></i>
                   </button>
                 </div>
@@ -61,9 +61,15 @@
             </section>
           }
 
-          @if (songs().length) {
+          @if (allSongs().length) {
             <section class="songs" aria-label="Songs">
-              <h2>Songs</h2>
+              <div class="songs-head">
+                <h2>Songs</h2>
+                <div class="song-tabs" role="group" aria-label="Song source">
+                  <button type="button" [class.active]="songTab() === 'all'" [attr.aria-pressed]="songTab() === 'all'" (click)="songTab.set('all')">All</button>
+                  <button type="button" [class.active]="songTab() === 'audius'" [attr.aria-pressed]="songTab() === 'audius'" (click)="songTab.set('audius')">Audius</button>
+                </div>
+              </div>
               @for (track of songs(); track track.id; let i = $index) {
                 <app-track-row [track]="track" [index]="i" (play)="playSong(i)" />
               }
@@ -83,7 +89,25 @@
                   [seed]="a.id"
                   [round]="true"
                   [playable]="false"
-                  [link]="['/artist', a.id]"
+                  [link]="artistLink(a)"
+                />
+              }
+            </div>
+          </section>
+        }
+
+        @if (s.albums.length) {
+          <section class="group" aria-label="Albums">
+            <h2>Albums</h2>
+            <div class="row">
+              @for (al of s.albums; track al.id) {
+                <app-media-card
+                  [title]="al.name"
+                  [subtitle]="al.artistName"
+                  [image]="al.artwork.medium"
+                  [seed]="al.id"
+                  [link]="albumLink(al)"
+                  (play)="playAlbum(al)"
                 />
               }
             </div>

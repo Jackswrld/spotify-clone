@@ -1,4 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
+import { artistLink, trackLink } from '../../core/links';
 import { RouterLink } from '@angular/router';
 import { PlayerService } from '../../state/player.service';
 import { LyricsService } from '../../state/lyrics.service';
@@ -14,7 +15,7 @@ import { artworkColor } from '../../shared/utils/artwork-color';
     <div class="lyrics" [style.background]="'linear-gradient(180deg, ' + color() + ' 0%, var(--surface-1) 100%)'">
       @if (player.current(); as track) {
         <header class="head">
-          <a [routerLink]="['/track', track.id]" class="title">{{ track.title }}</a>
+          <a [routerLink]="trackLink(track)" class="title">{{ track.title }}</a>
           <span class="artist">{{ track.artistName }}</span>
         </header>
 
@@ -88,6 +89,8 @@ import { artworkColor } from '../../shared/utils/artwork-color';
   `,
 })
 export class LyricsPage {
+  protected readonly trackLink = trackLink;
+  protected readonly artistLink = artistLink;
   protected readonly player = inject(PlayerService);
   protected readonly lyrics = inject(LyricsService);
   /** Background sampled from the current artwork. */

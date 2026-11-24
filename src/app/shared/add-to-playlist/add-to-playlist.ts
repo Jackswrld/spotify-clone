@@ -1,4 +1,5 @@
 import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { artistLink } from '../../core/links';
 import { Router } from '@angular/router';
 import { LibraryService } from '../../state/library.service';
 import { PlayerService } from '../../state/player.service';
@@ -117,7 +118,7 @@ export class TrackMenu {
   protected goToArtist(): void {
     const track = this.menu.state()?.track;
     this.close();
-    if (track) this.router.navigate(['/artist', track.artistId]);
+    if (track) this.router.navigate(artistLink(track));
   }
 
   protected runExtra(action: () => void): void {

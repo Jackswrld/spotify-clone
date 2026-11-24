@@ -1,7 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { artistLink, trackLink } from '../../core/links';
 import { RouterLink } from '@angular/router';
 import { PlayerService } from '../../state/player.service';
 import { PanelStateService } from '../../state/panel-state.service';
+import { RelayStatusService } from '../../core/api/relay-status';
 import { Cover } from '../../shared/cover/cover';
 import { LikeButton } from '../../shared/like-button/like-button';
 import { TrackMenuService } from '../../shared/add-to-playlist/track-menu.service';
@@ -15,9 +17,19 @@ import { formatTime } from '../../shared/utils/format';
   styleUrl: './player-bar.scss',
 })
 export class PlayerBar {
+  protected readonly trackLink = trackLink;
+  protected readonly artistLink = artistLink;
   protected readonly player = inject(PlayerService);
   protected readonly panel = inject(PanelStateService);
   protected readonly trackMenu = inject(TrackMenuService);
+  private readonly relay = inject(RelayStatusService);
+
+  protected readonly youtubeOffText = "YouTube playback isn't set up";
+
+  /** A YouTube song can't play until the relay has a YouTube key. */
+  protected readonly youtubeUnavailable = computed(
+    () => this.player.current()?.source === 'catalog' && !this.relay.youtubeReady(),
+  );
 
   /** Value shown while the user drags the seek slider; null when not dragging. */
   protected readonly dragValue = signal<number | null>(null);

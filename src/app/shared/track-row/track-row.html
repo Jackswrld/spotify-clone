@@ -14,9 +14,9 @@
   </button>
 
   <div class="meta">
-    <a class="title" [routerLink]="['/track', track().id]">{{ track().title }}</a>
+    <a class="title" [routerLink]="trackLink(track())">{{ track().title }}</a>
     @if (showAlbumArtist()) {
-      <a class="artist" [routerLink]="['/artist', track().artistId]">{{ track().artistName }}</a>
+      <a class="artist" [routerLink]="artistLink(track())">{{ track().artistName }}</a>
     }
   </div>
 

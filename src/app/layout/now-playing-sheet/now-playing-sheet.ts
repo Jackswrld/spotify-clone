@@ -1,22 +1,26 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { artistLink, trackLink } from '../../core/links';
 import { RouterLink } from '@angular/router';
 import { PlayerService } from '../../state/player.service';
 import { ToastService } from '../../state/toast.service';
 import { Cover } from '../../shared/cover/cover';
 import { LikeButton } from '../../shared/like-button/like-button';
 import { NowPlayingView } from '../right-panel/now-playing-view';
+import { VideoSlot } from '../../shared/video-slot/video-slot';
 import { TrackMenuService } from '../../shared/add-to-playlist/track-menu.service';
 import { formatTime } from '../../shared/utils/format';
 
 /** Phone: full-screen player opened from the mini player. */
 @Component({
   selector: 'app-now-playing-sheet',
-  imports: [RouterLink, Cover, LikeButton, NowPlayingView],
+  imports: [RouterLink, Cover, LikeButton, NowPlayingView, VideoSlot],
   templateUrl: './now-playing-sheet.html',
   styleUrl: './now-playing-sheet.scss',
   host: { '(document:keydown.escape)': 'onEscape()' },
 })
 export class NowPlayingSheet {
+  protected readonly trackLink = trackLink;
+  protected readonly artistLink = artistLink;
   protected readonly player = inject(PlayerService);
   private readonly toast = inject(ToastService);
   protected readonly trackMenu = inject(TrackMenuService);

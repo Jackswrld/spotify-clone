@@ -4,6 +4,7 @@ import { LibraryService } from '../../state/library.service';
 import { LayoutService } from '../../state/layout.service';
 import { safeStorage } from '../../state/safe-storage';
 import { LibraryList } from '../../shared/library-list/library-list';
+import { RelayStatusService } from '../../core/api/relay-status';
 
 type SidebarState = 'collapsed' | 'normal' | 'expanded';
 const STORAGE_KEY = 'library.sidebar';
@@ -49,6 +50,14 @@ const STORAGE_KEY = 'library.sidebar';
       @if (state() !== 'collapsed') {
         <footer class="credit">
           Powered by <a href="https://audius.co" target="_blank" rel="noopener">Audius</a>
+          ·
+          @if (relay.youtubeReady()) {
+            Mainstream songs play via YouTube
+          } @else {
+            <span title="Add a YouTube API key to server/.env (see the README, YouTube setup)">
+              YouTube playback isn't set up
+            </span>
+          }
         </footer>
       }
     </div>
@@ -58,6 +67,7 @@ const STORAGE_KEY = 'library.sidebar';
 export class LibrarySidebar {
   private readonly library = inject(LibraryService);
   private readonly router = inject(Router);
+  protected readonly relay = inject(RelayStatusService);
 
   protected readonly state = signal<SidebarState>(
     safeStorage.get<SidebarState | null>(STORAGE_KEY, null) ??

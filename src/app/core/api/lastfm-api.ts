@@ -47,6 +47,23 @@ export class LastFmApi {
     );
   }
 
+  /** Last.fm's global top tracks (names only; resolve on Apple before playing). */
+  topTracks(limit = 25): Observable<{ name: string; artist: string; image: string | null }[]> {
+    if (!this.config.lastFmApiKey) return of([]);
+    return this.call('chart.gettoptracks', { limit: String(limit) }).pipe(
+      map((res) =>
+        ((res?.['tracks']?.track ?? []) as { name: string; artist?: { name?: string }; image?: { size: string; '#text': string }[] }[]).map(
+          (t) => ({
+            name: t.name,
+            artist: t.artist?.name ?? '',
+            image: [...(t.image ?? [])].reverse().find((i) => i['#text'])?.['#text'] ?? null,
+          }),
+        ),
+      ),
+      catchError(() => of([])),
+    );
+  }
+
   similar(name: string, limit = 10): Observable<string[]> {
     if (!this.config.lastFmApiKey) return of([]);
     return this.call('artist.getsimilar', { artist: name, limit: String(limit) }).pipe(

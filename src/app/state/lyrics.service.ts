@@ -3,6 +3,7 @@ import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Observable, catchError, distinctUntilChanged, map, of, startWith, switchMap } from 'rxjs';
 import { LyricsApi } from '../core/api/lyrics-api';
 import { Lyrics, Track } from '../core/models';
+import { lyricsTitle } from '../core/title';
 import { PlayerService } from './player.service';
 
 export interface LyricsState {
@@ -14,16 +15,7 @@ export interface LyricsState {
 /** Lines are highlighted slightly early so they feel in time with the singer. */
 const LEAD_SECONDS = 0.25;
 
-/**
- * Audius titles often repeat the artist ("Xsetra - Fragments"); LRCLIB matches on the
- * bare song title, so drop a leading "<artist> - ".
- */
-export function lyricsTitle(track: Track): string {
-  const prefix = `${track.artistName} - `;
-  return track.title.toLowerCase().startsWith(prefix.toLowerCase())
-    ? track.title.slice(prefix.length).trim()
-    : track.title;
-}
+export { lyricsTitle } from '../core/title';
 
 /** Lyrics for whatever is playing, plus which line is active right now. */
 @Injectable({ providedIn: 'root' })

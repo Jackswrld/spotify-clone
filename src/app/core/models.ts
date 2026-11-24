@@ -1,3 +1,6 @@
+/** Where an item comes from: Audius (streams as audio) or the Apple catalog (plays via YouTube). */
+export type TrackSource = 'audius' | 'catalog';
+
 export interface Artwork {
   small: string | null;
   medium: string | null;
@@ -22,6 +25,12 @@ export interface Track {
   repostCount: number;
   releaseDate: string | null;
   permalink: string;
+  source: TrackSource;
+  /** Apple track id for catalog songs; null for Audius. */
+  appleId: string | null;
+  albumId?: string | null;
+  albumName?: string | null;
+  appleUrl?: string | null;
 }
 
 export interface Artist {
@@ -36,6 +45,8 @@ export interface Artist {
   avatar: Artwork;
   coverPhoto: string | null;
   permalink: string;
+  source: TrackSource;
+  appleUrl?: string | null;
 }
 
 export interface Playlist {
@@ -48,6 +59,26 @@ export interface Playlist {
   ownerId: string;
   ownerName: string;
   permalink: string;
+  source?: 'audius';
+}
+
+/** An Apple catalog album or single. */
+export interface Album {
+  id: string;
+  appleId: string;
+  name: string;
+  artistName: string;
+  artistId: string;
+  artwork: Artwork;
+  releaseDate: string | null;
+  trackCount: number;
+  genre: string | null;
+  appleUrl: string;
+}
+
+/** Old saved items predate `source`; they are all Audius. */
+export function upgradeSource<T extends { source?: TrackSource }>(item: T): T & { source: TrackSource } {
+  return { ...item, source: item.source ?? 'audius' };
 }
 
 export interface UserPlaylist {

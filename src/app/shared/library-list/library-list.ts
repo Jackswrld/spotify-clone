@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
+import { artistLink } from '../../core/links';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { LibraryService } from '../../state/library.service';
 import { Cover } from '../cover/cover';
@@ -7,7 +8,7 @@ export type LibraryFilter = 'All' | 'Playlists' | 'Artists' | 'Liked songs';
 
 interface LibraryItem {
   key: string;
-  kind: 'liked' | 'mine' | 'playlist' | 'artist';
+  kind: 'liked' | 'mine' | 'playlist' | 'album' | 'artist';
   title: string;
   subtitle: string;
   image: string | null;
@@ -78,6 +79,19 @@ export class LibraryList {
         queryParams: null,
       });
     }
+    for (const al of this.library.savedAlbums()) {
+      items.push({
+        key: 'album:' + al.id,
+        kind: 'album',
+        title: al.name,
+        subtitle: `Album • ${al.artistName}`,
+        image: al.artwork.small,
+        seed: al.id,
+        round: false,
+        link: ['/album', al.appleId],
+        queryParams: null,
+      });
+    }
     for (const a of this.library.savedArtists()) {
       items.push({
         key: 'artist:' + a.id,
@@ -87,7 +101,7 @@ export class LibraryList {
         image: a.avatar.small,
         seed: a.id,
         round: true,
-        link: ['/artist', a.id],
+        link: artistLink(a),
         queryParams: null,
       });
     }

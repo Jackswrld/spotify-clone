@@ -1,9 +1,12 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Observable, Subject, catchError, debounceTime, distinctUntilChanged, forkJoin, map, of, startWith, switchMap } from 'rxjs';
 import { AudiusApi } from '../../core/api/audius-api';
-import { Artist, Playlist, Track } from '../../core/models';
+import { Album, Artist, Playlist, Track } from '../../core/models';
+import { CatalogApi } from '../../core/api/catalog-api';
+import { albumLink, artistLink, trackLink } from '../../core/links';
+import { normalise } from '../../core/title';
 import { PlayerService } from '../../state/player.service';
 import { LayoutService } from '../../state/layout.service';
 import { TrackRow } from '../../shared/track-row/track-row';
@@ -21,7 +24,15 @@ type SearchState =
   | { status: 'idle' }
   | { status: 'loading'; q: string }
   | { status: 'error'; q: string }
-  | { status: 'ready'; q: string; tracks: Track[]; artists: Artist[]; playlists: Playlist[] };
+  | {
+      status: 'ready';
+      q: string;
+      catalogSongs: Track[];
+      audiusSongs: Track[];
+      artists: Artist[];
+      albums: Album[];
+      playlists: Playlist[];
+    };
 
 type TopResult = { kind: 'artist'; artist: Artist } | { kind: 'track'; track: Track; index: number };
 
@@ -33,6 +44,11 @@ type TopResult = { kind: 'artist'; artist: Artist } | { kind: 'track'; track: Tr
 })
 export class SearchPage {
   private readonly api = inject(AudiusApi);
+  private readonly catalog = inject(CatalogApi);
+  protected readonly trackLink = trackLink;
+  protected readonly artistLink = artistLink;
+  protected readonly albumLink = albumLink;
+  protected readonly songTab = signal<'all' | 'audius'>('all');
   private readonly router = inject(Router);
   protected readonly player = inject(PlayerService);
   protected readonly layout = inject(LayoutService);
@@ -65,22 +81,45 @@ export class SearchPage {
     { initialValue: { status: 'idle' } as SearchState },
   );
 
-  /** One failing group still shows the others; if all three fail, it's an error, not "no results". */
+  /**
+   * Both catalogs at once. One failing group still shows the others; only when every
+   * request fails is it an error rather than "no results". Never calls YouTube.
+   */
   private search$(q: string) {
     const orNull = <T>(source: Observable<T[]>) => source.pipe(catchError(() => of(null)));
     return forkJoin({
-      tracks: orNull(this.api.searchTracks(q, 20)),
-      artists: orNull(this.api.searchArtists(q, 10)),
+      catalogSongs: orNull(this.catalog.searchSongs(q, 20)),
+      catalogArtists: orNull(this.catalog.searchArtists(q, 10)),
+      albums: orNull(this.catalog.searchAlbums(q, 10)),
+      audiusSongs: orNull(this.api.searchTracks(q, 20)),
+      audiusArtists: orNull(this.api.searchArtists(q, 10)),
       playlists: orNull(this.api.searchPlaylists(q, 10)),
     }).pipe(
-      map(({ tracks, artists, playlists }): SearchState =>
-        tracks === null && artists === null && playlists === null
+      map((r): SearchState =>
+        Object.values(r).every((v) => v === null)
           ? { status: 'error', q }
-          : { status: 'ready', q, tracks: tracks ?? [], artists: artists ?? [], playlists: playlists ?? [] },
+          : {
+              status: 'ready',
+              q,
+              catalogSongs: r.catalogSongs ?? [],
+              audiusSongs: r.audiusSongs ?? [],
+              artists: [...(r.catalogArtists ?? []), ...(r.audiusArtists ?? [])],
+              albums: r.albums ?? [],
+              playlists: r.playlists ?? [],
+            },
       ),
       startWith<SearchState>({ status: 'loading', q }),
     );
   }
+
+  /** Catalog songs first, then Audius songs that aren't the same song. */
+  protected readonly allSongs = computed(() => {
+    const s = this.state();
+    if (s.status !== 'ready') return [];
+    const key = (t: Track) => `${normalise(t.artistName)}|${normalise(t.title)}`;
+    const seen = new Set(s.catalogSongs.map(key));
+    return [...s.catalogSongs, ...s.audiusSongs.filter((t) => !seen.has(key(t)))];
+  });
 
   protected retry(): void {
     this.retry$.next();
@@ -88,23 +127,32 @@ export class SearchPage {
 
   protected readonly songs = computed(() => {
     const s = this.state();
-    return s.status === 'ready' ? s.tracks.slice(0, 10) : [];
+    if (s.status !== 'ready') return [];
+    return (this.songTab() === 'audius' ? s.audiusSongs : this.allSongs()).slice(0, 10);
   });
 
   protected readonly topResult = computed<TopResult | null>(() => {
     const s = this.state();
     if (s.status !== 'ready') return null;
     const q = s.q.toLowerCase();
-    const artist = s.artists.find((a) => a.name.toLowerCase() === q);
+    const artist = s.artists.find((a) => a.name.toLowerCase() === q); // catalog artists come first
     if (artist) return { kind: 'artist', artist };
-    if (s.tracks.length) return { kind: 'track', track: s.tracks[0], index: 0 };
+    const songs = this.allSongs();
+    if (songs.length) return { kind: 'track', track: songs[0], index: 0 };
     if (s.artists.length) return { kind: 'artist', artist: s.artists[0] };
     return null;
   });
 
   protected readonly isEmpty = computed(() => {
     const s = this.state();
-    return s.status === 'ready' && !s.tracks.length && !s.artists.length && !s.playlists.length;
+    return (
+      s.status === 'ready' &&
+      !s.catalogSongs.length &&
+      !s.audiusSongs.length &&
+      !s.artists.length &&
+      !s.albums.length &&
+      !s.playlists.length
+    );
   });
 
   protected search(q: string): void {
@@ -113,6 +161,17 @@ export class SearchPage {
 
   protected playSong(index: number): void {
     this.player.playTracks(this.songs(), index);
+  }
+
+  /** The top result plays from the merged list, regardless of the songs tab. */
+  protected playTop(index: number): void {
+    this.player.playTracks(this.allSongs(), index);
+  }
+
+  protected playAlbum(album: Album): void {
+    this.catalog.album(album.appleId).subscribe((r) => {
+      if (r.tracks.length) this.player.playTracks(r.tracks, 0);
+    });
   }
 
   protected playPlaylist(playlist: Playlist): void {
