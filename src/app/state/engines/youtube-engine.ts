@@ -42,6 +42,8 @@ export class YouTubeEngine implements Engine {
   private videoId: string | null = null;
   private state: number = YT_STATE.UNSTARTED;
   private failed = false;
+  /** Whether playback is wanted for the current load (set by autoplay/play, cleared by pause). */
+  private wantPlay = false;
   private volume = 100;
   private muted = false;
   private poll: ReturnType<typeof setInterval> | null = null;
@@ -53,6 +55,7 @@ export class YouTubeEngine implements Engine {
     this.track = track;
     this.videoId = null;
     this.failed = false;
+    this.wantPlay = autoplay;
     this.stopPolling();
     this.clearBlockedTimer();
     this.player?.stopVideo();
@@ -73,11 +76,14 @@ export class YouTubeEngine implements Engine {
         this.ensurePlayer().then(
           (player) => {
             if (token !== this.token) return;
-            if (autoplay) {
+            // Decide now, not at load(): the user may have paused, hidden the tab or closed the
+            // card while the video was being found. Never start a video that can't be seen.
+            if (this.wantPlay && this.dock.canShow()) {
               player.loadVideoById(result.videoId);
               this.watchForBlockedStart(token);
             } else {
               player.cueVideoById(result.videoId);
+              this.emit({ type: 'paused' });
             }
           },
           () => {
@@ -90,12 +96,14 @@ export class YouTubeEngine implements Engine {
   }
 
   play(): void {
-    if (!this.player || !this.videoId) return;
+    this.wantPlay = true;
+    if (!this.player || !this.videoId) return; // still looking up the video: starts when found
     this.player.playVideo();
     this.watchForBlockedStart(this.token);
   }
 
   pause(): void {
+    this.wantPlay = false;
     this.clearBlockedTimer();
     this.player?.pauseVideo();
   }

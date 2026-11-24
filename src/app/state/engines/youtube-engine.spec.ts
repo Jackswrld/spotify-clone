@@ -10,6 +10,11 @@ import { CatalogApi } from '../../core/api/catalog-api';
 import { FakeYTPlayer } from '../testing/fake-yt';
 import { makeTrack } from '../../core/testing/make-track';
 import { Track } from '../../core/models';
+import { signal } from '@angular/core';
+import { Subject } from 'rxjs';
+import { VideoDockService } from '../video-dock.service';
+
+const canShow = signal(true);
 
 const SONG = makeTrack('apple:1', { source: 'catalog', appleId: '1', title: 'Calm Down', artistName: 'Rema', duration: 220 });
 
@@ -23,6 +28,7 @@ function setup(match: (t: Track) => Observable<MatchResult> = () => of({ videoId
       provideHttpClientTesting(),
       { provide: YouTubeMatchApi, useValue: matchApi },
       { provide: CatalogApi, useValue: catalog },
+      { provide: VideoDockService, useValue: { host: document.createElement('div'), canShow } },
       {
         provide: YT_PLAYER_FACTORY,
         useValue: () =>
@@ -41,6 +47,7 @@ function setup(match: (t: Track) => Observable<MatchResult> = () => of({ videoId
 }
 
 describe('YouTubeEngine', () => {
+  beforeEach(() => canShow.set(true));
   it('is the catalog engine and loads the matched video when autoplay is on', fakeAsync(() => {
     const { engine, player } = setup();
     expect(engine.source).toBe('catalog');
@@ -173,5 +180,44 @@ describe('YouTubeEngine', () => {
     expect(player().calls).toEqual(
       jasmine.arrayContaining(['play', 'pause', 'seek:30', 'volume:50', 'mute', 'unmute']),
     );
+  }));
+
+  it('if the video becomes hidden during the lookup, it is cued instead of started', fakeAsync(() => {
+    const pending = new Subject<MatchResult>();
+    const { engine, player, events } = setup(() => pending);
+    engine.load(SONG, true);
+    flushMicrotasks();
+    canShow.set(false); // e.g. the user switched tabs while the video was being found
+    pending.next({ videoId: 'v1', title: 't', channel: 'c' });
+    pending.complete();
+    flushMicrotasks();
+    expect(player().calls).toContain('cue:v1');
+    expect(player().calls).not.toContain('load:v1');
+    expect(events).toContain({ type: 'paused' });
+    tick(2000);
+  }));
+
+  it('a pause during the lookup also keeps it from starting', fakeAsync(() => {
+    const pending = new Subject<MatchResult>();
+    const { engine, player } = setup(() => pending);
+    engine.load(SONG, true);
+    engine.pause();
+    pending.next({ videoId: 'v1', title: 't', channel: 'c' });
+    pending.complete();
+    flushMicrotasks();
+    expect(player().calls).toContain('cue:v1');
+    expect(player().calls).not.toContain('load:v1');
+  }));
+
+  it('pressing play during the lookup starts the video once it is found', fakeAsync(() => {
+    const pending = new Subject<MatchResult>();
+    const { engine, player } = setup(() => pending);
+    engine.load(SONG, false);
+    engine.play();
+    pending.next({ videoId: 'v1', title: 't', channel: 'c' });
+    pending.complete();
+    flushMicrotasks();
+    expect(player().calls).toContain('load:v1');
+    tick(2000);
   }));
 });
