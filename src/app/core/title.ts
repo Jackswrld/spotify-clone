@@ -1,8 +1,10 @@
+import type { Track } from './models';
+
 /** Lower case, accents removed, non-alphanumerics to single spaces. */
 function base(s: string): string {
   return s
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/\p{M}/gu, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
@@ -27,3 +29,15 @@ export function normalise(s: string): string {
 export function exactKey(s: string): string {
   return base(withoutFeat(s));
 }
+
+/**
+ * Audius (and some catalog) titles often repeat the artist ("Xsetra - Fragments"); LRCLIB matches on the
+ * bare song title, so drop a leading "<artist> - ".
+ */
+export function lyricsTitle(track: Track): string {
+  const prefix = `${track.artistName} - `;
+  return track.title.toLowerCase().startsWith(prefix.toLowerCase())
+    ? track.title.slice(prefix.length).trim()
+    : track.title;
+}
+
