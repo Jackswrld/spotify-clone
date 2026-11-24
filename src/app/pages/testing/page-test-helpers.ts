@@ -28,6 +28,7 @@ export function makeArtist(id: string, patch: Partial<Artist> = {}): Artist {
     avatar: { small: null, medium: null, large: null },
     coverPhoto: null,
     permalink: `/artist${id}`,
+    source: 'audius',
     ...patch,
   };
 }

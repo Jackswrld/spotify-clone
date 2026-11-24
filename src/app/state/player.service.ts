@@ -1,6 +1,6 @@
 import { Injectable, InjectionToken, Signal, computed, effect, inject, signal } from '@angular/core';
 import { AudiusApi } from '../core/api/audius-api';
-import { Track } from '../core/models';
+import { Track, upgradeSource } from '../core/models';
 import { safeStorage } from './safe-storage';
 
 export type RepeatMode = 'off' | 'all' | 'one';
@@ -44,7 +44,7 @@ export class PlayerService {
   private readonly _shuffle: ReturnType<typeof signal<boolean>>;
   private readonly _repeat: ReturnType<typeof signal<RepeatMode>>;
   private readonly _error = signal<string | null>(null);
-  private readonly _recent = signal<Track[]>(safeStorage.getArray<Track>(RECENT_KEY));
+  private readonly _recent = signal<Track[]>(safeStorage.getArray<Track>(RECENT_KEY).map(upgradeSource));
 
   /** Queue order before shuffle was turned on; used to restore it. */
   private originalQueue: Track[] = [];

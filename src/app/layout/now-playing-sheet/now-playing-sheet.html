@@ -18,8 +18,8 @@
 
     <div class="info">
       <div class="meta">
-        <a class="title" [routerLink]="['/track', track.id]" (click)="close.emit()">{{ track.title }}</a>
-        <a class="artist" [routerLink]="['/artist', track.artistId]" (click)="close.emit()">{{ track.artistName }}</a>
+        <a class="title" [routerLink]="trackLink(track)" (click)="close.emit()">{{ track.title }}</a>
+        <a class="artist" [routerLink]="artistLink(track)" (click)="close.emit()">{{ track.artistName }}</a>
       </div>
       <div class="actions">
         <app-like-button class="like" [track]="track" />

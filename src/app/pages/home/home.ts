@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { artistLink, trackLink } from '../../core/links';
 import { RouterLink } from '@angular/router';
 import { AudiusApi } from '../../core/api/audius-api';
 import { Playlist, Track } from '../../core/models';
@@ -39,6 +40,8 @@ const LOAD_ERROR = "Couldn't load this right now.";
   styleUrl: './home.scss',
 })
 export class HomePage {
+  protected readonly trackLink = trackLink;
+  protected readonly artistLink = artistLink;
   private readonly api = inject(AudiusApi);
   protected readonly player = inject(PlayerService);
   protected readonly library = inject(LibraryService);

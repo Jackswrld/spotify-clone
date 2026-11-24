@@ -377,6 +377,13 @@ describe('PlayerService', () => {
     }).not.toThrow();
   });
 
+  it('reads recently played items without source as audius', () => {
+    const { source, ...old } = makeTrack('old');
+    void source;
+    localStorage.setItem('player.recent', JSON.stringify([old]));
+    expect(setup().recentlyPlayed()[0].source).toBe('audius');
+  });
+
   it('ignores recently played data of the wrong shape', () => {
     localStorage.setItem('player.recent', '{}');
     expect(setup().recentlyPlayed()).toEqual([]);

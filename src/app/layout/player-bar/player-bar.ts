@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { artistLink, trackLink } from '../../core/links';
 import { RouterLink } from '@angular/router';
 import { PlayerService } from '../../state/player.service';
 import { PanelStateService } from '../../state/panel-state.service';
@@ -15,6 +16,8 @@ import { formatTime } from '../../shared/utils/format';
   styleUrl: './player-bar.scss',
 })
 export class PlayerBar {
+  protected readonly trackLink = trackLink;
+  protected readonly artistLink = artistLink;
   protected readonly player = inject(PlayerService);
   protected readonly panel = inject(PanelStateService);
   protected readonly trackMenu = inject(TrackMenuService);

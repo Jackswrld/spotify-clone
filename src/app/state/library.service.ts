@@ -1,5 +1,5 @@
 import { Injectable, Signal, computed, signal } from '@angular/core';
-import { Artist, Playlist, Track, UserPlaylist } from '../core/models';
+import { Artist, Playlist, Track, UserPlaylist, upgradeSource } from '../core/models';
 import { safeStorage } from './safe-storage';
 
 const KEYS = {
@@ -25,11 +25,13 @@ function newId(): string {
 /** The user's library, kept in this browser: likes, saves and their own playlists. */
 @Injectable({ providedIn: 'root' })
 export class LibraryService {
-  private readonly _liked = signal<Track[]>(loadArray(KEYS.liked));
+  private readonly _liked = signal<Track[]>(loadArray<Track>(KEYS.liked).map(upgradeSource));
   private readonly _savedPlaylists = signal<Playlist[]>(loadArray(KEYS.savedPlaylists));
-  private readonly _savedArtists = signal<Artist[]>(loadArray(KEYS.savedArtists));
+  private readonly _savedArtists = signal<Artist[]>(loadArray<Artist>(KEYS.savedArtists).map(upgradeSource));
   private readonly _myPlaylists = signal<UserPlaylist[]>(
-    loadArray<UserPlaylist>(KEYS.myPlaylists).filter((p) => p && typeof p.id === 'string' && Array.isArray(p.tracks)),
+    loadArray<UserPlaylist>(KEYS.myPlaylists)
+      .filter((p) => p && typeof p.id === 'string' && Array.isArray(p.tracks))
+      .map((p) => ({ ...p, tracks: p.tracks.map(upgradeSource) })),
   );
 
   readonly likedTracks: Signal<Track[]> = this._liked.asReadonly();

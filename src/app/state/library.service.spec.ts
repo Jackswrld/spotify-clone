@@ -27,6 +27,7 @@ const artist: Artist = {
   avatar: { small: null, medium: null, large: null },
   coverPhoto: null,
   permalink: '/xsetra',
+  source: 'audius',
 };
 
 function fresh(): LibraryService {
@@ -133,6 +134,16 @@ describe('LibraryService', () => {
     expect(lib.likedTracks().map((t) => t.id)).toEqual(['1']);
     expect(lib.isLiked('1')).toBeTrue();
     expect(lib.savedArtists()).toEqual([]);
+  });
+
+  it('reads saved items without source as audius', () => {
+    const { source, ...old } = makeTrack('1');
+    void source;
+    localStorage.setItem('library.liked', JSON.stringify([old]));
+    localStorage.setItem('library.savedArtists', JSON.stringify([{ id: 'a1', name: 'Old Artist' }]));
+    const lib = fresh();
+    expect(lib.likedTracks()[0].source).toBe('audius');
+    expect(lib.savedArtists()[0].source).toBe('audius');
   });
 
   it('keeps working in memory when setItem throws (quota)', () => {

@@ -20,6 +20,8 @@ export function makeTrack(id: string, patch: Partial<Track> = {}): Track {
     repostCount: 0,
     releaseDate: null,
     permalink: `/artist/song-${id}`,
+    source: 'audius',
+    appleId: null,
     ...patch,
   };
 }

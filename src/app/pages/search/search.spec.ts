@@ -22,6 +22,7 @@ function artist(id: string, name: string): Artist {
     avatar: { small: null, medium: null, large: null },
     coverPhoto: null,
     permalink: '/' + name.toLowerCase(),
+    source: 'audius',
   };
 }
 

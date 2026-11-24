@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { artistLink, trackLink } from '../../core/links';
 import { RouterLink } from '@angular/router';
 import { PlayerService } from '../../state/player.service';
 import { ToastService } from '../../state/toast.service';
@@ -17,6 +18,8 @@ import { formatTime } from '../../shared/utils/format';
   host: { '(document:keydown.escape)': 'onEscape()' },
 })
 export class NowPlayingSheet {
+  protected readonly trackLink = trackLink;
+  protected readonly artistLink = artistLink;
   protected readonly player = inject(PlayerService);
   private readonly toast = inject(ToastService);
   protected readonly trackMenu = inject(TrackMenuService);

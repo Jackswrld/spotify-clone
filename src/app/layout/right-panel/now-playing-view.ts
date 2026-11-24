@@ -1,4 +1,5 @@
 import { Component, computed, inject, input } from '@angular/core';
+import { artistLink, trackLink } from '../../core/links';
 import { RouterLink } from '@angular/router';
 import { of } from 'rxjs';
 import { AudiusApi } from '../../core/api/audius-api';
@@ -21,6 +22,8 @@ import { loadable } from '../../shared/utils/loadable';
   styleUrl: './now-playing-view.scss',
 })
 export class NowPlayingView {
+  protected readonly trackLink = trackLink;
+  protected readonly artistLink = artistLink;
   private readonly api = inject(AudiusApi);
   protected readonly player = inject(PlayerService);
   protected readonly panel = inject(PanelStateService);

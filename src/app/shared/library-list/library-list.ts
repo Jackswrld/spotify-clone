@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
+import { artistLink } from '../../core/links';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { LibraryService } from '../../state/library.service';
 import { Cover } from '../cover/cover';
@@ -87,7 +88,7 @@ export class LibraryList {
         image: a.avatar.small,
         seed: a.id,
         round: true,
-        link: ['/artist', a.id],
+        link: artistLink(a),
         queryParams: null,
       });
     }

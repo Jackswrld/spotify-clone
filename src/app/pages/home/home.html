@@ -99,7 +99,7 @@
         [subtitle]="track.artistName"
         [image]="track.artwork.medium"
         [seed]="track.id"
-        [link]="['/track', track.id]"
+        [link]="trackLink(track)"
         (play)="playFrom(player.recentlyPlayed(), i)"
       />
     }
