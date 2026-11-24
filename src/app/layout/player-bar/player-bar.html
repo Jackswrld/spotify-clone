@@ -35,6 +35,8 @@
           type="button"
           class="play"
           [attr.aria-label]="player.isPlaying() ? 'Pause' : 'Play'"
+          [disabled]="youtubeUnavailable()"
+          [title]="youtubeUnavailable() ? youtubeOffText : ''"
           (click)="player.toggle()"
         >
           @if (player.isBuffering()) {

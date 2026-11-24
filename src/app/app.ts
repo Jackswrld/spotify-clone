@@ -10,6 +10,7 @@ import { MiniPlayer } from './layout/mini-player/mini-player';
 import { NowPlayingSheet } from './layout/now-playing-sheet/now-playing-sheet';
 import { Toast } from './shared/toast/toast';
 import { TrackMenu } from './shared/add-to-playlist/add-to-playlist';
+import { VideoDock } from './layout/video-dock/video-dock';
 import { PlayerService } from './state/player.service';
 import { ToastService } from './state/toast.service';
 import { ShortcutsService } from './state/shortcuts.service';
@@ -19,7 +20,7 @@ import { PanelStateService } from './state/panel-state.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Navbar, TabBar, LibrarySidebar, PlayerBar, MiniPlayer, NowPlayingSheet, Toast, TrackMenu, RightPanel, QueueView],
+  imports: [RouterOutlet, Navbar, TabBar, LibrarySidebar, PlayerBar, MiniPlayer, NowPlayingSheet, Toast, TrackMenu, RightPanel, QueueView, VideoDock],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -41,6 +42,10 @@ export class App {
     effect(() => {
       const message = this.player.error();
       if (message) this.toast.show(message);
+    });
+    effect(() => {
+      const notice = this.player.notice();
+      if (notice) this.toast.show(notice);
     });
     effect(() => {
       // The sheet only exists on phones.

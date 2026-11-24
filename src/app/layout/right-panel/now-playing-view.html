@@ -1,7 +1,11 @@
 @if (player.current(); as track) {
   <div class="view">
     @if (showHeader()) {
-      <app-cover class="art" [src]="track.artwork.medium" [seed]="track.id" [alt]="track.title" />
+      @if (track.source === 'catalog') {
+        <app-video-slot [priority]="2" />
+      } @else {
+        <app-cover class="art" [src]="track.artwork.medium" [seed]="track.id" [alt]="track.title" />
+      }
 
       <div class="title-row">
         <div class="meta">

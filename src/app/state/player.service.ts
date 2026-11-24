@@ -416,6 +416,9 @@ export class PlayerService {
         } else if (event.kind === 'offline') {
           this.announce("Can't reach the music server.");
           this.stop();
+        } else if (event.kind === 'not-set-up') {
+          this.announce("YouTube playback isn't set up.");
+          this.stop();
         } else {
           this.onError(event.kind);
         }

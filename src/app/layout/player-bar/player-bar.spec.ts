@@ -4,6 +4,7 @@ import { provideRouter } from '@angular/router';
 import { PlayerBar } from './player-bar';
 import { PlayerService } from '../../state/player.service';
 import { PanelStateService } from '../../state/panel-state.service';
+import { RelayStatusService } from '../../core/api/relay-status';
 import { Track } from '../../core/models';
 import { makeTrack } from '../../core/testing/make-track';
 
@@ -29,6 +30,8 @@ function fakePlayer() {
   };
 }
 
+const youtubeReady = signal(true);
+
 function setup() {
   const player = fakePlayer();
   const panel = { view: signal(null), toggle: jasmine.createSpy('toggle') };
@@ -38,6 +41,7 @@ function setup() {
       provideRouter([]),
       { provide: PlayerService, useValue: player },
       { provide: PanelStateService, useValue: panel },
+      { provide: RelayStatusService, useValue: { youtubeReady: youtubeReady } },
     ],
   });
   const fixture = TestBed.createComponent(PlayerBar);
@@ -100,6 +104,19 @@ describe('PlayerBar', () => {
     fixture.detectChanges();
     button('Queue').click();
     expect(panel.toggle).toHaveBeenCalledWith('queue');
+  });
+
+  it('disables play for a YouTube song when YouTube playback is not set up', () => {
+    const { fixture, player, el } = setup();
+    player.current.set(makeTrack('apple:1', { source: 'catalog', appleId: '1' }));
+    youtubeReady.set(false);
+    fixture.detectChanges();
+    const play = el.querySelector('button.play') as HTMLButtonElement;
+    expect(play.disabled).toBeTrue();
+    expect(play.title).toBe("YouTube playback isn't set up");
+    youtubeReady.set(true);
+    fixture.detectChanges();
+    expect(play.disabled).toBeFalse();
   });
 
   it('repeat button reflects mode with aria-pressed', () => {

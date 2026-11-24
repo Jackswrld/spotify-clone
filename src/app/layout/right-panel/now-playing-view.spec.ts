@@ -50,6 +50,18 @@ describe('NowPlayingView', () => {
     expect(el.textContent).toContain('Play something to see it here');
   });
 
+  it('shows the video slot instead of the cover for a YouTube song', () => {
+    const { fixture, el, current } = setup();
+    current.set(makeTrack('apple:1', { source: 'catalog', appleId: '1', artistId: 'apple:9' }));
+    fixture.detectChanges();
+    expect(el.querySelector('app-video-slot')).toBeTruthy();
+    expect(el.querySelector('app-cover.art')).toBeNull();
+    current.set(makeTrack('1'));
+    fixture.detectChanges();
+    expect(el.querySelector('app-video-slot')).toBeNull();
+    expect(el.querySelector('app-cover.art')).toBeTruthy();
+  });
+
   it('loads the artist for the current track and swaps when the track changes', () => {
     const { fixture, el, current, api } = setup();
     current.set(makeTrack('1', { title: 'Fragments', artistId: 'a1', genre: 'Drum & Bass' }));

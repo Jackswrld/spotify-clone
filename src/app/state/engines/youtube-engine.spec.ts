@@ -100,7 +100,7 @@ describe('YouTubeEngine', () => {
       ['no-match', 'no-match'],
       ['quota', 'quota'],
       ['offline', 'offline'],
-      ['no-key', 'offline'],
+      ['no-key', 'not-set-up'],
     ] as const) {
       TestBed.resetTestingModule();
       const { engine, events } = setup(() => of({ videoId: null, reason }));

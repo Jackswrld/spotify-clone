@@ -515,6 +515,15 @@ describe('PlayerService', () => {
       expect(p.current()?.id).toBe('apple:c1');
     });
 
+    it('a missing YouTube key stops with the setup message', () => {
+      const p = setup();
+      p.playTracks([C[0], C[1]], 0);
+      yt.emit({ type: 'error', kind: 'not-set-up' });
+      expect(p.error()).toBe("YouTube playback isn't set up.");
+      expect(p.current()?.id).toBe('apple:c1');
+      expect(p.isPlaying()).toBeFalse();
+    });
+
     it('blocked is a pause, not an error', () => {
       const p = setup();
       p.playTracks([C[0]], 0);

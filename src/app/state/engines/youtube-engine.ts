@@ -64,7 +64,8 @@ export class YouTubeEngine implements Engine {
         if (token !== this.token) return; // a newer load or an unload happened meanwhile
         if (result.videoId === null) {
           this.failed = true;
-          const kind = result.reason === 'no-match' || result.reason === 'quota' ? result.reason : 'offline';
+          const kind =
+            result.reason === 'no-key' ? 'not-set-up' : result.reason === 'offline' ? 'offline' : result.reason;
           this.emit({ type: 'error', kind });
           return;
         }
