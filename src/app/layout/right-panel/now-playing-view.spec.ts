@@ -1,3 +1,4 @@
+import { ArtistPhotoApi } from '../../core/api/artist-photo-api';
 import { ArtistEnrichmentService } from '../../state/artist-enrichment.service';
 import { TestBed } from '@angular/core/testing';
 import { computed, signal } from '@angular/core';
@@ -9,7 +10,7 @@ import { PanelStateService } from '../../state/panel-state.service';
 import { AudiusApi } from '../../core/api/audius-api';
 import { LyricsService } from '../../state/lyrics.service';
 import { CatalogApi } from '../../core/api/catalog-api';
-import { Track } from '../../core/models';
+import { Artist, Track } from '../../core/models';
 import { makeTrack } from '../../core/testing/make-track';
 import { makeArtist } from '../../pages/testing/page-test-helpers';
 
@@ -40,6 +41,10 @@ function setup() {
       { provide: ArtistEnrichmentService, useValue: { infoFor: () => of(null), fansAlsoLike: () => of([]) } },
       { provide: AudiusApi, useValue: api },
       { provide: CatalogApi, useValue: catalog },
+      {
+        provide: ArtistPhotoApi,
+        useValue: { withPhoto: (a: Artist) => of(a.source === 'catalog' ? { ...a, avatar: { small: 'p.jpg', medium: 'p.jpg', large: 'p.jpg' } } : a) },
+      },
       { provide: PanelStateService, useValue: { open: jasmine.createSpy('open') } },
       {
         provide: LyricsService,
@@ -97,5 +102,6 @@ describe('NowPlayingView', () => {
     expect(el.textContent).toContain('Apple Rema');
     expect(el.textContent).toContain('Another Hit');
     expect(el.textContent).not.toContain('followers');
+    expect(el.querySelector('.avatar img')?.getAttribute('src')).toBe('p.jpg');
   });
 });
