@@ -7,10 +7,10 @@ const feed = { feed: { results: [{ id: '1', name: 'Song', artistName: 'Artist' }
 
 test('health reports whether a YouTube key is set', async () => {
   let relay = await startRelay({ fetch: fakeFetch({}), env: {} });
-  assert.deepEqual(await (await relay.get('/api/health')).json(), { ok: true, youtubeKey: false });
+  assert.deepEqual(await (await relay.get('/api/health')).json(), { ok: true, youtubeKey: false, geniusKey: false });
   await relay.close();
   relay = await startRelay({ fetch: fakeFetch({}), env: { YOUTUBE_API_KEY: 'k' } });
-  assert.deepEqual(await (await relay.get('/api/health')).json(), { ok: true, youtubeKey: true });
+  assert.deepEqual(await (await relay.get('/api/health')).json(), { ok: true, youtubeKey: true, geniusKey: false });
   await relay.close();
 });
 
