@@ -1,11 +1,10 @@
-import { Injectable, InjectionToken, Signal, computed, effect, inject, signal, untracked } from '@angular/core';
+import { Injectable, InjectionToken, Signal, computed, effect, inject, signal } from '@angular/core';
 import { AudiusApi } from '../core/api/audius-api';
 import { Track, TrackSource, upgradeSource } from '../core/models';
 import { safeStorage } from './safe-storage';
 import { Engine, EngineEvent } from './engines/engine';
 import { AudioEngine } from './engines/audio-engine';
 import { YouTubeEngine } from './engines/youtube-engine';
-import { VideoDockService } from './video-dock.service';
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
@@ -18,7 +17,6 @@ const RECENT_MAX = 20;
 const MAX_CONSECUTIVE_ERRORS = 3;
 const RESTART_THRESHOLD_S = 3;
 
-export const NOTICE_TAP_TO_PLAY = 'Tap play to keep listening — this song plays via YouTube';
 
 interface Settings {
   volume: number;
@@ -38,7 +36,6 @@ const DEFAULT_SETTINGS: Settings = { volume: 1, muted: false, shuffle: false, re
 export class PlayerService {
   private readonly api = inject(AudiusApi);
   private readonly random = inject(RANDOM);
-  private readonly dock = inject(VideoDockService);
   private readonly audioEngine: Engine;
   private readonly youTubeEngine: Engine;
   /** The engine for the current track; events from any other engine are ignored. */
@@ -55,15 +52,11 @@ export class PlayerService {
   private readonly _shuffle: ReturnType<typeof signal<boolean>>;
   private readonly _repeat: ReturnType<typeof signal<RepeatMode>>;
   private readonly _error = signal<string | null>(null);
-  /** Informational message (not an error; never counts toward the error cap). */
-  private readonly _notice = signal<string | null>(null);
   private readonly _recent = signal<Track[]>(safeStorage.getArray<Track>(RECENT_KEY).map(upgradeSource));
 
   /** Queue order before shuffle was turned on; used to restore it. */
   private originalQueue: Track[] = [];
   private consecutiveErrors = 0;
-  /** The user wants music playing (set by play actions, cleared by a user pause). */
-  private wantsPlay = false;
 
   readonly queue: Signal<Track[]> = this._queue.asReadonly();
   readonly index: Signal<number> = this._index.asReadonly();
@@ -78,7 +71,6 @@ export class PlayerService {
   readonly shuffle: Signal<boolean>;
   readonly repeat: Signal<RepeatMode>;
   readonly error: Signal<string | null> = this._error.asReadonly();
-  readonly notice: Signal<string | null> = this._notice.asReadonly();
   readonly recentlyPlayed: Signal<Track[]> = this._recent.asReadonly();
 
   constructor() {
@@ -100,7 +92,6 @@ export class PlayerService {
     this.attach(this.audioEngine);
     this.attach(this.youTubeEngine);
     this.setUpMediaSession();
-    this.followVideoVisibility();
   }
 
   /** Overridden in tests with a fake element. */
@@ -136,7 +127,6 @@ export class PlayerService {
   playTracks(tracks: Track[], startIndex = 0): void {
     if (!tracks.length) return;
     this.resetErrors(); // the user chose something new: give it a fresh start
-    this.wantsPlay = true;
     const start = Math.min(Math.max(startIndex, 0), tracks.length - 1);
     this.originalQueue = [...tracks];
     if (this._shuffle()) {
@@ -153,7 +143,6 @@ export class PlayerService {
   playAt(queueIndex: number): void {
     if (queueIndex < 0 || queueIndex >= this._queue().length) return;
     this.resetErrors();
-    this.wantsPlay = true;
     this.load(queueIndex);
   }
 
@@ -223,13 +212,10 @@ export class PlayerService {
     if (this.active.hasFailed()) {
       // The engine is stuck after a failed load; reload the track instead of calling play().
       this.resetErrors();
-      this.wantsPlay = true;
-      this.load(this._index());
+        this.load(this._index());
     } else if (this.active.isPaused()) {
-      this.wantsPlay = true;
-      this.play();
+        this.play();
     } else {
-      this.wantsPlay = false;
       this.active.pause();
     }
   }
@@ -314,49 +300,13 @@ export class PlayerService {
     this._index.set(index);
     this._time.set(0);
     this._duration.set(track.duration);
-    // YouTube rules: never start a video the user can't see. Load it paused instead.
-    const autoplay = !this.mustStayPaused(track);
-    this._isPlaying.set(autoplay);
-    if (!autoplay) this.tellTapToPlay();
-    engine.load(track, autoplay);
+    this._isPlaying.set(true);
+    engine.load(track, true);
   }
 
   private play(): void {
-    const track = this.current();
-    if (track && this.mustStayPaused(track)) {
-      this._isPlaying.set(false);
-      this.tellTapToPlay();
-      return;
-    }
     this._isPlaying.set(true);
     this.active.play();
-  }
-
-  /** Catalog songs play through a visible YouTube player only. */
-  private mustStayPaused(track: Track): boolean {
-    return track.source === 'catalog' && !this.dock.canShow();
-  }
-
-  private tellTapToPlay(): void {
-    this._notice.set(null);
-    this._notice.set(NOTICE_TAP_TO_PLAY);
-  }
-
-  /** Pause YouTube when its player can't be seen; resume when it can, if the user still wants music. */
-  private followVideoVisibility(): void {
-    effect(() => {
-      const visible = this.dock.canShow();
-      untracked(() => {
-        const track = this.current();
-        if (track?.source !== 'catalog') return;
-        if (!visible && this._isPlaying()) {
-          this.active.pause();
-          this._isPlaying.set(false);
-        } else if (visible && this.wantsPlay && !this._isPlaying() && !this.active.hasFailed()) {
-          this.play();
-        }
-      });
-    });
   }
 
   private stop(): void {

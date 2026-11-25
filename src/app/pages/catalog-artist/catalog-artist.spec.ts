@@ -1,3 +1,5 @@
+import { ArtistPhotoApi } from '../../core/api/artist-photo-api';
+import { Artist } from '../../core/models';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -18,7 +20,12 @@ const album = (id: string, name: string, date: string): Album => ({
 const ALBUMS = [album('2', 'E-Mortal Boy', '2026-11-20T08:00:00Z'), album('1', 'Rave & Roses', '2022-03-25T07:00:00Z')];
 const TOP = ['1', '2'].map((id) => makeTrack(`apple:${id}`, { source: 'catalog', appleId: id }));
 
-function setup() {
+function setup(photo: string | null = null) {
+  const photos = {
+    withPhoto: jasmine.createSpy('withPhoto').and.callFake((a: Artist) =>
+      of(photo ? { ...a, avatar: { small: photo, medium: photo, large: photo } } : a),
+    ),
+  };
   const catalog = {
     artist: jasmine.createSpy('artist').and.returnValue(
       of(makeArtist('apple:9', { name: 'Rema', source: 'catalog', appleUrl: 'https://music.apple.com/artist/9' })),
@@ -33,6 +40,7 @@ function setup() {
     providers: [
       provideRouter([]),
       { provide: CatalogApi, useValue: catalog },
+      { provide: ArtistPhotoApi, useValue: photos },
       { provide: PlayerService, useValue: player },
       { provide: ArtistEnrichmentService, useValue: { infoFor: () => of(null), fansAlsoLike: () => of([]), similarNames: () => of([]) } },
     ],
@@ -81,5 +89,15 @@ describe('CatalogArtistPage', () => {
     const { el } = setup();
     const apple = [...el.querySelectorAll('a')].find((a) => a.textContent?.includes('Listen on Apple Music'));
     expect(apple?.getAttribute('href')).toBe('https://music.apple.com/artist/9');
+  });
+
+  it('the header shows the real artist photo, or the newest release art without one', () => {
+    let s = setup('https://cdn/rema.jpg');
+    s.fixture.detectChanges();
+    expect(s.el.querySelector('.header-art img')?.getAttribute('src')).toBe('https://cdn/rema.jpg');
+    TestBed.resetTestingModule();
+    s = setup(null);
+    s.fixture.detectChanges();
+    expect(s.el.querySelector('.header-art img')?.getAttribute('src')).not.toBe('https://cdn/rema.jpg');
   });
 });

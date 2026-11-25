@@ -6,14 +6,13 @@ import { ToastService } from '../../state/toast.service';
 import { Cover } from '../../shared/cover/cover';
 import { LikeButton } from '../../shared/like-button/like-button';
 import { NowPlayingView } from '../right-panel/now-playing-view';
-import { VideoSlot } from '../../shared/video-slot/video-slot';
 import { TrackMenuService } from '../../shared/add-to-playlist/track-menu.service';
 import { formatTime } from '../../shared/utils/format';
 
 /** Phone: full-screen player opened from the mini player. */
 @Component({
   selector: 'app-now-playing-sheet',
-  imports: [RouterLink, Cover, LikeButton, NowPlayingView, VideoSlot],
+  imports: [RouterLink, Cover, LikeButton, NowPlayingView],
   templateUrl: './now-playing-sheet.html',
   styleUrl: './now-playing-sheet.scss',
   host: { '(document:keydown.escape)': 'onEscape()' },

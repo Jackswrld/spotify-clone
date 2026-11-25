@@ -1,3 +1,5 @@
+import { switchMap } from 'rxjs';
+import { ArtistPhotoApi } from '../../core/api/artist-photo-api';
 import { Component, computed, inject, input } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CatalogApi } from '../../core/api/catalog-api';
@@ -29,14 +31,19 @@ export class CatalogArtistPage {
   protected readonly library = inject(LibraryService);
   protected readonly albumLink = albumLink;
 
+  private readonly photos = inject(ArtistPhotoApi);
   readonly appleId = input.required<string>();
 
-  protected readonly artist = loadable(this.appleId, (id) => this.catalog.artist(id));
+  protected readonly artist = loadable(this.appleId, (id) =>
+    this.catalog.artist(id).pipe(switchMap((a) => this.photos.withPhoto(a))),
+  );
   protected readonly albums = loadable(this.appleId, (id) => this.catalog.artistAlbums(id, 20));
   protected readonly topSongs = loadable(this.appleId, (id) => this.catalog.artistTopSongs(id, 10));
 
-  /** Apple has no artist photos in this API, so the newest release's art stands in. */
-  protected readonly image = computed(() => this.albums.state().data?.[0]?.artwork.small ?? null);
+  /** The real photo (Deezer); without one, the newest release's art stands in. */
+  protected readonly image = computed(
+    () => this.artist.state().data?.avatar.large ?? this.albums.state().data?.[0]?.artwork.small ?? null,
+  );
   protected readonly headerColor = artworkColor(this.image);
   protected readonly following = computed(() => this.library.isArtistSaved(`apple:${this.appleId()}`));
 

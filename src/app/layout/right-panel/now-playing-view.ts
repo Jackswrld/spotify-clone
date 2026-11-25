@@ -1,7 +1,8 @@
+import { ArtistPhotoApi } from '../../core/api/artist-photo-api';
 import { Component, computed, inject, input } from '@angular/core';
 import { artistLink, trackLink } from '../../core/links';
 import { RouterLink } from '@angular/router';
-import { of } from 'rxjs';
+import { of, switchMap } from 'rxjs';
 import { AudiusApi } from '../../core/api/audius-api';
 import { CatalogApi } from '../../core/api/catalog-api';
 import { appleIdOf } from '../../core/links';
@@ -13,7 +14,6 @@ import { LyricsService } from '../../state/lyrics.service';
 import { Cover } from '../../shared/cover/cover';
 import { LikeButton } from '../../shared/like-button/like-button';
 import { TrackRow } from '../../shared/track-row/track-row';
-import { VideoSlot } from '../../shared/video-slot/video-slot';
 import { LastfmAbout } from '../../shared/lastfm-about/lastfm-about';
 import { formatCount } from '../../shared/utils/format';
 import { loadable } from '../../shared/utils/loadable';
@@ -21,7 +21,7 @@ import { loadable } from '../../shared/utils/loadable';
 /** Right panel: details about what's playing. */
 @Component({
   selector: 'app-now-playing-view',
-  imports: [RouterLink, Cover, LikeButton, TrackRow, LastfmAbout, VideoSlot],
+  imports: [RouterLink, Cover, LikeButton, TrackRow, LastfmAbout],
   templateUrl: './now-playing-view.html',
   styleUrl: './now-playing-view.scss',
 })
@@ -39,6 +39,7 @@ export class NowPlayingView {
   readonly showHeader = input(true);
 
   /** The current artist and where their data comes from (Audius or the Apple catalog). */
+  private readonly photos = inject(ArtistPhotoApi);
   private readonly artistKey = computed<{ id: string; catalog: boolean } | null>(
     () => {
       const t: Track | null = this.player.current();
@@ -47,7 +48,11 @@ export class NowPlayingView {
     { equal: (a, b) => a?.id === b?.id && a?.catalog === b?.catalog },
   );
   protected readonly artist = loadable(this.artistKey, (k) =>
-    !k ? of(null) : k.catalog ? this.catalog.artist(appleIdOf(k.id)) : this.api.artist(k.id),
+    !k
+      ? of(null)
+      : k.catalog
+        ? this.catalog.artist(appleIdOf(k.id)).pipe(switchMap((a) => this.photos.withPhoto(a)))
+        : this.api.artist(k.id),
   );
   private readonly artistTracks = loadable(this.artistKey, (k) =>
     !k

@@ -54,8 +54,8 @@ describe('httpCacheInterceptor', () => {
     backend.expectOne('/api/users/2').flush({});
   });
 
-  it('never caches relay health or YouTube match calls', () => {
-    for (const url of ['/api/health', '/api/youtube/match?artist=a&title=b']) {
+  it('never caches relay health, YouTube match or lyric search calls', () => {
+    for (const url of ['/api/health', '/api/youtube/match?artist=a&title=b', '/api/lyrics/search?q=a']) {
       http.get(url).subscribe();
       backend.expectOne(url).flush({});
       http.get(url).subscribe();

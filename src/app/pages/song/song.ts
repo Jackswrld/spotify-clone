@@ -3,7 +3,6 @@ import { RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { of } from 'rxjs';
 import { CatalogApi } from '../../core/api/catalog-api';
-import { YouTubeMatchApi } from '../../core/api/youtube-match-api';
 import { appleIdOf, artistLink } from '../../core/links';
 import { PlayerService } from '../../state/player.service';
 import { LyricsService } from '../../state/lyrics.service';
@@ -29,7 +28,6 @@ import { scrollMainToTopOn } from '../scroll-top';
 })
 export class SongPage {
   private readonly catalog = inject(CatalogApi);
-  private readonly matchApi = inject(YouTubeMatchApi);
   protected readonly player = inject(PlayerService);
   protected readonly trackMenu = inject(TrackMenuService);
   protected readonly lyricsService = inject(LyricsService);
@@ -57,14 +55,6 @@ export class SongPage {
   /** Static lyrics when this song isn't the one playing. */
   private readonly songForLyrics = computed(() => (this.isCurrent() ? null : this.song.state().data));
   protected readonly staticLyrics = loadable(this.songForLyrics, (t) => (t ? this.lyricsService.fetchFor(t) : of(null)));
-
-  /** Known YouTube video for this song — only from memory; this page never spends a search. */
-  protected readonly youtubeVideo = computed(() => {
-    this.player.current();
-    this.player.isPlaying();
-    const s = this.song.state().data;
-    return s ? this.matchApi.cached(s.id) : null;
-  });
 
   constructor() {
     scrollMainToTopOn(this.appleId);

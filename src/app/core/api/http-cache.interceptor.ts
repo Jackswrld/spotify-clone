@@ -4,7 +4,7 @@ import { of, tap } from 'rxjs';
 const TRENDING_TTL_MS = 3 * 60_000;
 const DEFAULT_TTL_MS = 10 * 60_000;
 
-const NEVER_CACHE = ['/api/health', '/api/youtube'];
+const NEVER_CACHE = ['/api/health', '/api/youtube', '/api/lyrics'];
 
 const cache = new Map<string, { expires: number; response: HttpResponse<unknown> }>();
 

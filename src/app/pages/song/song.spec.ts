@@ -80,14 +80,10 @@ describe('SongPage', () => {
     expect(index).toBe(0);
   });
 
-  it('shows "Plays via YouTube" only when a match is already known and never asks for one', () => {
-    let s = setup();
-    expect(s.el.textContent).not.toContain('Plays via YouTube');
-    expect(s.match.match).not.toHaveBeenCalled();
-    TestBed.resetTestingModule();
-    s = setup(of(SONG), { videoId: 'vid9', title: 't', channel: 'c' });
-    const link = [...s.el.querySelectorAll('a')].find((a) => a.textContent?.includes('Plays via YouTube'));
-    expect(link?.getAttribute('href')).toBe('https://www.youtube.com/watch?v=vid9');
+  it('never shows a YouTube link (audio-only), even when the video is known', () => {
+    const s = setup(of(SONG), { videoId: 'vid9', title: 't', channel: 'c' });
+    expect(s.el.textContent).not.toContain('YouTube');
+    expect(s.el.querySelector('a[href*="youtube.com"]')).toBeNull();
     expect(s.match.match).not.toHaveBeenCalled();
   });
 

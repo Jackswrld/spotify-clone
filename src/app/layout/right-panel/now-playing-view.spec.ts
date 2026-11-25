@@ -1,3 +1,4 @@
+import { ArtistPhotoApi } from '../../core/api/artist-photo-api';
 import { ArtistEnrichmentService } from '../../state/artist-enrichment.service';
 import { TestBed } from '@angular/core/testing';
 import { computed, signal } from '@angular/core';
@@ -9,7 +10,7 @@ import { PanelStateService } from '../../state/panel-state.service';
 import { AudiusApi } from '../../core/api/audius-api';
 import { LyricsService } from '../../state/lyrics.service';
 import { CatalogApi } from '../../core/api/catalog-api';
-import { Track } from '../../core/models';
+import { Artist, Track } from '../../core/models';
 import { makeTrack } from '../../core/testing/make-track';
 import { makeArtist } from '../../pages/testing/page-test-helpers';
 
@@ -40,6 +41,10 @@ function setup() {
       { provide: ArtistEnrichmentService, useValue: { infoFor: () => of(null), fansAlsoLike: () => of([]) } },
       { provide: AudiusApi, useValue: api },
       { provide: CatalogApi, useValue: catalog },
+      {
+        provide: ArtistPhotoApi,
+        useValue: { withPhoto: (a: Artist) => of(a.source === 'catalog' ? { ...a, avatar: { small: 'p.jpg', medium: 'p.jpg', large: 'p.jpg' } } : a) },
+      },
       { provide: PanelStateService, useValue: { open: jasmine.createSpy('open') } },
       {
         provide: LyricsService,
@@ -58,16 +63,18 @@ describe('NowPlayingView', () => {
     expect(el.textContent).toContain('Play something to see it here');
   });
 
-  it('shows the video slot instead of the cover for a YouTube song', () => {
+  it('shows the original cover art for a chart song (audio-only, no video)', () => {
     const { fixture, el, current } = setup();
-    current.set(makeTrack('apple:1', { source: 'catalog', appleId: '1', artistId: 'apple:9' }));
+    current.set(
+      makeTrack('apple:1', {
+        source: 'catalog', appleId: '1', artistId: 'apple:9',
+        artwork: { small: 's.jpg', medium: 'm.jpg', large: 'https://is1.mzstatic.com/x/600x600bb.jpg' },
+      }),
+    );
     fixture.detectChanges();
-    expect(el.querySelector('app-video-slot')).toBeTruthy();
-    expect(el.querySelector('.view > app-cover.art')).toBeNull();
-    current.set(makeTrack('1'));
-    fixture.detectChanges();
-    expect(el.querySelector('app-video-slot')).toBeNull();
     expect(el.querySelector('.view > app-cover.art')).toBeTruthy();
+    expect(el.querySelector('.view > app-cover.art img')?.getAttribute('src')).toBe('https://is1.mzstatic.com/x/600x600bb.jpg');
+    expect(el.querySelector('iframe, app-video-slot')).toBeNull();
   });
 
   it('loads the artist for the current track and swaps when the track changes', () => {
@@ -95,5 +102,6 @@ describe('NowPlayingView', () => {
     expect(el.textContent).toContain('Apple Rema');
     expect(el.textContent).toContain('Another Hit');
     expect(el.textContent).not.toContain('followers');
+    expect(el.querySelector('.avatar img')?.getAttribute('src')).toBe('p.jpg');
   });
 });

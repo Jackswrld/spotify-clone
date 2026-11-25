@@ -190,9 +190,10 @@ describe('HomePage', () => {
     expect(player.playTracks).not.toHaveBeenCalled();
   });
 
-  it('labels the Audius section', () => {
+  it('labels the Audius section "Independent artists", without naming Audius', () => {
     const { el } = setup();
-    expect(el.textContent).toContain('Independent on Audius');
+    expect(el.textContent).toContain('Independent artists');
+    expect(el.textContent).not.toContain('Independent on Audius');
   });
 
   it('shows a Liked songs tile only when there are liked songs', () => {

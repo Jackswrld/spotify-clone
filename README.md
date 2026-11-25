@@ -54,6 +54,21 @@ in `server/`, restart `npm start`.
   `lastFmApiKey` (create one at https://www.last.fm/api/account/create). Without it, artist bios,
   similar artists and the global chart stay hidden.
 
+## Lyric search setup
+
+Search can find a song from a line of its lyrics (the **Lyrics** tab, or type 4 or more words).
+It uses Genius, which needs a free **access token**:
+
+1. Sign in at https://genius.com/api-clients and click **New API Client**.
+2. Give it any name; for *App website URL* use `http://localhost`.
+3. Click **Generate Access Token** and copy it.
+4. Put it in `server/.env`: `GENIUS_ACCESS_TOKEN=your-token`.
+5. Restart `npm start`.
+
+Each hit is checked on Deezer, so only real songs show up (Genius also hosts books, poems and
+translations). Without a token, the Lyrics tab says "Lyric search isn't set up" and the rest of
+search works as usual.
+
 ## YouTube setup
 
 Mainstream songs play through YouTube, which needs a free **YouTube Data API key**:
@@ -63,10 +78,10 @@ Mainstream songs play through YouTube, which needs a free **YouTube Data API key
 3. Open **APIs & Services → Credentials → Create credentials → API key**.
 4. Click **Restrict key**, and under *API restrictions* allow only **YouTube Data API v3**.
 5. Put the key in `server/.env`: `YOUTUBE_API_KEY=your-key`. This file is git-ignored.
-6. Restart `npm start`. The sidebar footer then says "Mainstream songs play via YouTube".
+6. Restart `npm start`.
 
 Without a key, everything else works, but mainstream songs can't play. Their play button is
-disabled, and the sidebar says "YouTube playback isn't set up".
+disabled, and the sidebar says "Chart songs can't play yet".
 
 **Daily limit.** YouTube allows **100 searches a day** for free. The relay remembers every match
 in `server/data/youtube-cache.json`:

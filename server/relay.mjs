@@ -2,10 +2,14 @@
 // It fetches feeds the browser can't, and keeps the YouTube key off the client.
 
 import { createChartFetcher, isValidChart } from './charts.mjs';
+import { createDeezer } from './deezer.mjs';
+import { createLyricsSearch } from './genius.mjs';
 import { createMatchCache, exactKey, matchSong, songKey } from './youtube.mjs';
 
 const DEV_ORIGINS = ['http://localhost:4300', 'http://127.0.0.1:4300'];
 const MATCH_LIMIT_PER_MINUTE = 30;
+/** One search looks up to 10 artist photos; Deezer allows far more. */
+const LIMITS = { match: MATCH_LIMIT_PER_MINUTE, photo: 120, lyrics: MATCH_LIMIT_PER_MINUTE };
 
 function send(res, status, body, origin) {
   const headers = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
@@ -24,18 +28,21 @@ function send(res, status, body, origin) {
 export function createRelay({ fetch, env, now = Date.now, cacheFile }) {
   const fetchChart = createChartFetcher({ fetch, now });
   const matchCache = createMatchCache(cacheFile);
-  /** ip → { windowStart, count } */
+  const deezer = createDeezer({ fetch, now });
+  const searchLyrics = createLyricsSearch({ fetch, token: env.GENIUS_ACCESS_TOKEN ?? '', now, deezer });
+  /** route|ip → { windowStart, count } */
   const rate = new Map();
 
-  function rateLimited(ip) {
+  function rateLimited(ip, route = 'match') {
+    const key = `${route}|${ip}`;
     const t = now();
-    const entry = rate.get(ip);
+    const entry = rate.get(key);
     if (!entry || t - entry.windowStart >= 60_000) {
-      rate.set(ip, { windowStart: t, count: 1 });
+      rate.set(key, { windowStart: t, count: 1 });
       return false;
     }
     entry.count++;
-    return entry.count > MATCH_LIMIT_PER_MINUTE;
+    return entry.count > (LIMITS[route] ?? MATCH_LIMIT_PER_MINUTE);
   }
 
   return async function handle(req, res) {
@@ -52,7 +59,7 @@ export function createRelay({ fetch, env, now = Date.now, cacheFile }) {
       if (req.method === 'OPTIONS') return send(res, 204, {}, origin);
 
       if (req.method === 'GET' && url.pathname === '/api/health') {
-        return send(res, 200, { ok: true, youtubeKey: Boolean(env.YOUTUBE_API_KEY) }, origin);
+        return send(res, 200, { ok: true, youtubeKey: Boolean(env.YOUTUBE_API_KEY), geniusKey: Boolean(env.GENIUS_ACCESS_TOKEN) }, origin);
       }
 
       if (req.method === 'GET' && parts[0] === 'api' && parts[1] === 'charts' && parts.length === 5) {
@@ -81,6 +88,28 @@ export function createRelay({ fetch, env, now = Date.now, cacheFile }) {
             { artist, title, durationS },
           );
           return send(res, 200, result, origin);
+        } catch {
+          return send(res, 502, { error: 'upstream' }, origin);
+        }
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/lyrics/search') {
+        if (rateLimited(req.socket.remoteAddress ?? 'unknown', 'lyrics')) return send(res, 429, { error: 'rate_limited' }, origin);
+        const q = (url.searchParams.get('q') ?? '').trim();
+        if (!exactKey(q) || q.length > 200) return send(res, 400, { error: 'bad_request' }, origin);
+        try {
+          return send(res, 200, await searchLyrics(q), origin);
+        } catch {
+          return send(res, 502, { error: 'upstream' }, origin);
+        }
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/artist-photo') {
+        if (rateLimited(req.socket.remoteAddress ?? 'unknown', 'photo')) return send(res, 429, { error: 'rate_limited' }, origin);
+        const name = (url.searchParams.get('name') ?? '').trim();
+        if (!exactKey(name) || name.length > 200) return send(res, 400, { error: 'bad_request' }, origin);
+        try {
+          return send(res, 200, await deezer.artistPhoto(name), origin);
         } catch {
           return send(res, 502, { error: 'upstream' }, origin);
         }

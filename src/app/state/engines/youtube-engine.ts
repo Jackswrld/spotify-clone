@@ -5,7 +5,7 @@ import { Track } from '../../core/models';
 import { CatalogApi } from '../../core/api/catalog-api';
 import { YouTubeMatchApi } from '../../core/api/youtube-match-api';
 import { lyricsTitle } from '../../core/title';
-import { VideoDockService } from '../video-dock.service';
+import { YouTubeHost } from './youtube-host';
 import { Engine, EngineEvent } from './engine';
 import { YT_PLAYER_FACTORY, YT_STATE, YTPlayerLike } from './youtube-loader';
 
@@ -16,9 +16,8 @@ const BLOCKED_AFTER_MS = 1500;
 const GONE_ERRORS = [100, 101, 150];
 
 /**
- * Plays catalog songs through YouTube's official embedded player (IFrame Player API).
- * It never hides, shrinks or separates the video; PlayerService only starts it while the
- * video dock can be seen.
+ * Plays catalog songs through YouTube's embedded player (IFrame Player API), audio only:
+ * the player lives off screen in YouTubeHost and the app shows the song's cover art instead.
  */
 @Injectable({ providedIn: 'root' })
 export class YouTubeEngine implements Engine {
@@ -27,7 +26,7 @@ export class YouTubeEngine implements Engine {
   private readonly http = inject(HttpClient);
   private readonly matchApi = inject(YouTubeMatchApi);
   private readonly catalog = inject(CatalogApi);
-  private readonly dock = inject(VideoDockService);
+  private readonly hostEl = inject(YouTubeHost);
   private readonly createFactory = inject(YT_PLAYER_FACTORY);
 
   private readonly subject = new Subject<EngineEvent>();
@@ -76,9 +75,8 @@ export class YouTubeEngine implements Engine {
         this.ensurePlayer().then(
           (player) => {
             if (token !== this.token) return;
-            // Decide now, not at load(): the user may have paused, hidden the tab or closed the
-            // card while the video was being found. Never start a video that can't be seen.
-            if (this.wantPlay && this.dock.canShow()) {
+            // Decide now, not at load(): the user may have paused while the song was being found.
+            if (this.wantPlay) {
               player.loadVideoById(result.videoId);
               this.watchForBlockedStart(token);
             } else {
@@ -161,7 +159,7 @@ export class YouTubeEngine implements Engine {
     this.playerReady = this.createFactory().then(
       (factory) =>
         new Promise<YTPlayerLike>((resolve) => {
-          const player = factory(this.dock.host, {
+          const player = factory(this.hostEl.host, {
             onReady: () => {
               player.setVolume(this.volume);
               if (this.muted) player.mute();

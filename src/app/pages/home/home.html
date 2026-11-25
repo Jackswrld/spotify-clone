@@ -81,7 +81,7 @@
     }
   </app-shelf>
 
-  <h2 class="section-heading">Independent on Audius</h2>
+  <h2 class="section-heading">Independent artists</h2>
   <div class="chips" role="group" aria-label="Genre">
     @for (g of genres; track g) {
       <button type="button" [class.active]="genre() === g" [attr.aria-pressed]="genre() === g" (click)="genre.set(g)">

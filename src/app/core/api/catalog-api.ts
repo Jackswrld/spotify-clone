@@ -1,3 +1,4 @@
+import { dedupeSongs, leadArtist } from '../dedupe-songs';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, InjectionToken, Signal, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
@@ -85,6 +86,9 @@ export function itunesArtist(r: Raw): Artist {
   };
 }
 
+/** iTunes allows at most 50 results per request. */
+const overFetch = (limit: number) => Math.min(limit * 2, 50);
+
 const sameTitle = (a: string, b: string) => exactKey(a) === exactKey(b);
 
 /** iTunes Search and Lookup (free, no key, works from the browser). Never uses previews. */
@@ -93,8 +97,11 @@ export class CatalogApi {
   private readonly http = inject(HttpClient);
   private readonly country = inject(CATALOG_COUNTRY);
 
+  /** Each song once: Apple repeats a song for every release, so ask for twice as many. */
   searchSongs(q: string, limit = 20): Observable<Track[]> {
-    return this.search(q, 'song', limit).pipe(map((r) => r.filter((x) => x['kind'] === 'song').map(itunesSong)));
+    return this.search(q, 'song', overFetch(limit)).pipe(
+      map((r) => dedupeSongs(r.filter((x) => x['kind'] === 'song').map(itunesSong)).slice(0, limit)),
+    );
   }
 
   searchArtists(q: string, limit = 10): Observable<Artist[]> {
@@ -151,15 +158,18 @@ export class CatalogApi {
   }
 
   artistTopSongs(appleId: string, limit = 10): Observable<Track[]> {
-    return this.lookup({ id: appleId, entity: 'song', limit: String(limit) }).pipe(
-      map((r) => r.filter((x) => x['wrapperType'] === 'track' && x['kind'] === 'song').map(itunesSong)),
+    return this.lookup({ id: appleId, entity: 'song', limit: String(overFetch(limit)) }).pipe(
+      map((r) =>
+        dedupeSongs(r.filter((x) => x['wrapperType'] === 'track' && x['kind'] === 'song').map(itunesSong)).slice(0, limit),
+      ),
     );
   }
 
   /** Resolves a song known only by name (e.g. from Last.fm). Exact artist + title only. */
   findSong(artist: string, title: string): Observable<Track | null> {
     return this.searchSongs(`${artist} ${title}`, 5).pipe(
-      map((songs) => songs.find((s) => sameTitle(s.artistName, artist) && sameTitle(s.title, title)) ?? null),
+      // Lead artist only: Apple credits "Drake & 21 Savage" where Genius/Last.fm say "Drake".
+      map((songs) => songs.find((s) => sameTitle(leadArtist(s.artistName), leadArtist(artist)) && sameTitle(s.title, title)) ?? null),
     );
   }
 
