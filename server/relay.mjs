@@ -7,6 +7,8 @@ import { createMatchCache, exactKey, matchSong, songKey } from './youtube.mjs';
 
 const DEV_ORIGINS = ['http://localhost:4300', 'http://127.0.0.1:4300'];
 const MATCH_LIMIT_PER_MINUTE = 30;
+/** One search looks up to 10 artist photos; Deezer allows far more. */
+const LIMITS = { match: MATCH_LIMIT_PER_MINUTE, photo: 120 };
 
 function send(res, status, body, origin) {
   const headers = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
@@ -38,7 +40,7 @@ export function createRelay({ fetch, env, now = Date.now, cacheFile }) {
       return false;
     }
     entry.count++;
-    return entry.count > MATCH_LIMIT_PER_MINUTE;
+    return entry.count > (LIMITS[route] ?? MATCH_LIMIT_PER_MINUTE);
   }
 
   return async function handle(req, res) {

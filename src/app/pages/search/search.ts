@@ -2,11 +2,12 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Observable, Subject, catchError, debounceTime, distinctUntilChanged, forkJoin, map, of, startWith, switchMap } from 'rxjs';
+import { ArtistPhotoApi } from '../../core/api/artist-photo-api';
 import { AudiusApi } from '../../core/api/audius-api';
 import { Album, Artist, Playlist, Track } from '../../core/models';
 import { CatalogApi } from '../../core/api/catalog-api';
 import { albumLink, artistLink, trackLink } from '../../core/links';
-import { normalise } from '../../core/title';
+import { exactKey } from '../../core/title';
 import { PlayerService } from '../../state/player.service';
 import { LayoutService } from '../../state/layout.service';
 import { TrackRow } from '../../shared/track-row/track-row';
@@ -19,6 +20,9 @@ import { HOME_GENRES } from '../home/home';
 
 const MOODS = ['Chill', 'Energizing', 'Romantic', 'Fiery', 'Melancholy'];
 const MIN_QUERY = 2;
+/** Fewer Deezer fans than this = a namesake, not the artist people mean. */
+const MIN_FANS = 1_000;
+const MAX_ARTISTS = 6;
 
 type SearchState =
   | { status: 'idle' }
@@ -48,7 +52,8 @@ export class SearchPage {
   protected readonly trackLink = trackLink;
   protected readonly artistLink = artistLink;
   protected readonly albumLink = albumLink;
-  protected readonly songTab = signal<'all' | 'audius'>('all');
+  private readonly photos = inject(ArtistPhotoApi);
+  protected readonly songTab = signal<'all' | 'independent' | 'lyrics'>('all');
   private readonly router = inject(Router);
   protected readonly player = inject(PlayerService);
   protected readonly layout = inject(LayoutService);
@@ -82,8 +87,9 @@ export class SearchPage {
   );
 
   /**
-   * Both catalogs at once. One failing group still shows the others; only when every
-   * request fails is it an error rather than "no results". Never calls YouTube.
+   * Apple for mainstream results, Audius only for the Independent tab. One failing group still
+   * shows the others; only when every request fails is it an error rather than "no results".
+   * Never calls YouTube.
    */
   private search$(q: string) {
     const orNull = <T>(source: Observable<T[]>) => source.pipe(catchError(() => of(null)));
@@ -92,18 +98,20 @@ export class SearchPage {
       catalogArtists: orNull(this.catalog.searchArtists(q, 10)),
       albums: orNull(this.catalog.searchAlbums(q, 10)),
       audiusSongs: orNull(this.api.searchTracks(q, 20)),
-      audiusArtists: orNull(this.api.searchArtists(q, 10)),
       playlists: orNull(this.api.searchPlaylists(q, 10)),
     }).pipe(
+      switchMap((r) =>
+        this.realArtists(r.catalogArtists ?? []).pipe(map((artists) => ({ ...r, artists, failed: Object.values(r).every((v) => v === null) }))),
+      ),
       map((r): SearchState =>
-        Object.values(r).every((v) => v === null)
+        r.failed
           ? { status: 'error', q }
           : {
               status: 'ready',
               q,
               catalogSongs: r.catalogSongs ?? [],
               audiusSongs: r.audiusSongs ?? [],
-              artists: [...(r.catalogArtists ?? []), ...(r.audiusArtists ?? [])],
+              artists: r.artists,
               albums: r.albums ?? [],
               playlists: r.playlists ?? [],
             },
@@ -112,13 +120,38 @@ export class SearchPage {
     );
   }
 
-  /** Catalog songs first, then Audius songs that aren't the same song. */
+  /**
+   * Apple's artists with their real photo and fan count. Namesakes nobody listens to are dropped
+   * (unless that would drop everyone); the rest are sorted by fans.
+   */
+  private realArtists(artists: Artist[]): Observable<Artist[]> {
+    if (!artists.length) return of([]);
+    const withPhoto = (a: Artist) =>
+      this.photos.photoFor(a.name).pipe(
+        map((p) => ({
+          ...a,
+          avatar: p.image ? { small: p.image, medium: p.image, large: p.image } : a.avatar,
+          followerCount: p.fans,
+        })),
+      );
+    return forkJoin(artists.map(withPhoto)).pipe(
+      map((withPhotos) => {
+        const real = withPhotos.filter((a) => a.followerCount >= MIN_FANS);
+        const shown = real.length ? real : withPhotos;
+        return [...shown].sort((a, b) => b.followerCount - a.followerCount).slice(0, MAX_ARTISTS);
+      }),
+    );
+  }
+
+  /** The mainstream (Apple) songs. */
   protected readonly allSongs = computed(() => {
     const s = this.state();
-    if (s.status !== 'ready') return [];
-    const key = (t: Track) => `${normalise(t.artistName)}|${normalise(t.title)}`;
-    const seen = new Set(s.catalogSongs.map(key));
-    return [...s.catalogSongs, ...s.audiusSongs.filter((t) => !seen.has(key(t)))];
+    return s.status === 'ready' ? s.catalogSongs : [];
+  });
+
+  protected readonly hasSongs = computed(() => {
+    const s = this.state();
+    return s.status === 'ready' && (s.catalogSongs.length > 0 || s.audiusSongs.length > 0);
   });
 
   protected retry(): void {
@@ -128,16 +161,18 @@ export class SearchPage {
   protected readonly songs = computed(() => {
     const s = this.state();
     if (s.status !== 'ready') return [];
-    return (this.songTab() === 'audius' ? s.audiusSongs : this.allSongs()).slice(0, 10);
+    return (this.songTab() === 'independent' ? s.audiusSongs : this.allSongs()).slice(0, 10);
   });
 
   protected readonly topResult = computed<TopResult | null>(() => {
     const s = this.state();
     if (s.status !== 'ready') return null;
-    const q = s.q.toLowerCase();
-    const artist = s.artists.find((a) => a.name.toLowerCase() === q); // catalog artists come first
+    const q = exactKey(s.q);
+    const artist = s.artists.find((a) => exactKey(a.name) === q);
     if (artist) return { kind: 'artist', artist };
     const songs = this.allSongs();
+    const titleMatch = songs.findIndex((t) => exactKey(t.title) === q);
+    if (titleMatch >= 0) return { kind: 'track', track: songs[titleMatch], index: titleMatch };
     if (songs.length) return { kind: 'track', track: songs[0], index: 0 };
     if (s.artists.length) return { kind: 'artist', artist: s.artists[0] };
     return null;

@@ -76,3 +76,13 @@ test('artist-photo route answers 502 when Deezer is down', async () => {
     await relay.close();
   }
 });
+
+test('artist-photo allows 120 lookups a minute (a search asks for up to 10), then 429', async () => {
+  const relay = await startRelay({ fetch: fakeDeezer(), env: {}, now: () => 0 });
+  try {
+    for (let i = 0; i < 120; i++) assert.equal((await relay.get(`/api/artist-photo?name=Artist${i}`)).status, 200);
+    assert.equal((await relay.get('/api/artist-photo?name=One%20More')).status, 429);
+  } finally {
+    await relay.close();
+  }
+});

@@ -61,13 +61,13 @@
             </section>
           }
 
-          @if (allSongs().length) {
+          @if (hasSongs()) {
             <section class="songs" aria-label="Songs">
               <div class="songs-head">
                 <h2>Songs</h2>
                 <div class="song-tabs" role="group" aria-label="Song source">
                   <button type="button" [class.active]="songTab() === 'all'" [attr.aria-pressed]="songTab() === 'all'" (click)="songTab.set('all')">All</button>
-                  <button type="button" [class.active]="songTab() === 'audius'" [attr.aria-pressed]="songTab() === 'audius'" (click)="songTab.set('audius')">Audius</button>
+                  <button type="button" [class.active]="songTab() === 'independent'" [attr.aria-pressed]="songTab() === 'independent'" (click)="songTab.set('independent')">Independent</button>
                 </div>
               </div>
               @for (track of songs(); track track.id; let i = $index) {
@@ -114,7 +114,7 @@
           </section>
         }
 
-        @if (s.playlists.length) {
+        @if (songTab() === 'independent' && s.playlists.length) {
           <section class="group" aria-label="Playlists">
             <h2>Playlists</h2>
             <div class="row">
