@@ -30,7 +30,7 @@ describe('CatalogApi', () => {
     expect(req.request.params.get('term')).toBe('calm down');
     expect(req.request.params.get('entity')).toBe('song');
     expect(req.request.params.get('media')).toBe('music');
-    expect(req.request.params.get('limit')).toBe('5');
+    expect(req.request.params.get('limit')).toBe('10'); // twice the limit: duplicates are removed
     req.flush({ resultCount: 1, results: [IT_SONG] });
     const t = out[0];
     expect(t.id).toBe('apple:1614063459');
@@ -110,5 +110,23 @@ describe('CatalogApi', () => {
     expect(req.request.params.get('country')).toBe('ng');
     expect(req.request.params.get('entity')).toBe('musicArtist');
     req.flush({ results: [] });
+  });
+
+  it('searchSongs and artistTopSongs return each song once, up to the limit', () => {
+    const { api, http } = setup();
+    const copy = (id: number, collectionName: string, artistName = 'Rema') => ({ ...IT_SONG, trackId: id, collectionName, artistName });
+    const other = { ...IT_SONG, trackId: 9, trackName: 'Charm', collectionName: 'Rave & Roses' };
+    let out: Track[] = [];
+    api.searchSongs('calm down', 2).subscribe((t) => (out = t));
+    http.expectOne((r) => r.url === `${BASE}/search`).flush({
+      results: [copy(1, 'Rave & Roses'), copy(2, 'Calm Down - Single', 'Rema & Selena Gomez'), copy(3, 'Rave & Roses Ultra'), other],
+    });
+    expect(out.map((t) => t.appleId)).toEqual(['2', '9']);
+
+    api.artistTopSongs('1304716885', 2).subscribe((t) => (out = t));
+    const req = http.expectOne((r) => r.url === `${BASE}/lookup`);
+    expect(req.request.params.get('limit')).toBe('4');
+    req.flush({ results: [copy(1, 'Rave & Roses'), copy(3, 'Rave & Roses Ultra'), other] });
+    expect(out.map((t) => t.appleId)).toEqual(['1', '9']);
   });
 });
