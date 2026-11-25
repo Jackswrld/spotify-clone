@@ -35,18 +35,25 @@ export function createLyricsSearch({ fetch, token, now, deezer = createDeezer({ 
       .filter((c) => !/genius/i.test(c.artist))
       .slice(0, MAX_CHECKED);
 
+    // A Deezer failure is not "not a real song": never cache it, and if every check failed,
+    // fail the search so the app offers Retry instead of "no songs".
+    let failures = 0;
     const confirmed = await Promise.all(
       candidates.map(async (c) => {
-        const track = await deezer.findTrack(c.artist, c.title).catch(() => null);
+        const track = await deezer.findTrack(c.artist, c.title).catch(() => {
+          failures++;
+          return null;
+        });
         return track ? { ...c, image: track.cover, durationS: track.durationS } : null;
       }),
     );
+    if (candidates.length && failures === candidates.length) throw new Error('deezer unavailable');
     const results = confirmed
       .filter(Boolean)
       .slice(0, MAX_RESULTS)
       .map(({ title, artist, image, geniusId, durationS }) => ({ title, artist, image, geniusId, durationS }));
     const value = { results };
-    cache.set(key, { at: now(), value });
+    if (failures === 0) cache.set(key, { at: now(), value });
     return value;
   };
 }

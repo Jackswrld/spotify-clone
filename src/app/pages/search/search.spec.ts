@@ -437,6 +437,23 @@ describe('SearchPage lyric search', () => {
     expect(section(el)?.textContent).toContain('WORTHLESS');
   }));
 
+  it('after using the Lyrics tab, a new search with no songs still shows its lyric hits (never a blank page)', fakeAsync(() => {
+    const { setQ, respond, el, lyrics, fixture } = setup();
+    lyrics.search.and.returnValue(of([HIT]));
+    setQ('worthless');
+    tick(300);
+    respond('worthless', { songs: [apple('1', 'Worthless Song')] });
+    const tab = [...el.querySelectorAll('.song-tabs button')].find((b) => b.textContent?.trim() === 'Lyrics') as HTMLButtonElement;
+    tab.click();
+    fixture.detectChanges();
+    setQ(LONG);
+    tick(300);
+    respond(LONG, {});
+    fixture.detectChanges();
+    expect(el.textContent).toContain('WORTHLESS');
+    expect(el.textContent).not.toContain('No results');
+  }));
+
   it('a newer query replaces older lyric results', fakeAsync(() => {
     const { setQ, respond, el, lyrics, fixture } = setup();
     const first = new Subject<LyricsSearchResult>();

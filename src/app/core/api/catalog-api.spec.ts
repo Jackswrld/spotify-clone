@@ -103,6 +103,21 @@ describe('CatalogApi', () => {
     expect(out).toBeNull();
   });
 
+  it('findSong matches a collaboration Apple credits to several artists (lyric hits name the lead only)', () => {
+    const { api, http } = setup();
+    let out: Track | null | undefined;
+    api.findSong('Drake', 'Rich Flex').subscribe((t) => (out = t));
+    http.expectOne((r) => r.url === `${BASE}/search`).flush({
+      results: [{ ...IT_SONG, trackId: 42, trackName: 'Rich Flex', artistName: 'Drake & 21 Savage', collectionName: 'Her Loss' }],
+    });
+    expect(out?.appleId).toBe('42');
+    api.findSong('21 Savage', 'Rich Flex').subscribe((t) => (out = t));
+    http.expectOne((r) => r.url === `${BASE}/search`).flush({
+      results: [{ ...IT_SONG, trackId: 42, trackName: 'Rich Flex', artistName: 'Drake & 21 Savage', collectionName: 'Her Loss' }],
+    });
+    expect(out).toBeNull(); // a featured artist is not the lead: no false match
+  });
+
   it('uses the country signal in requests', () => {
     const { api, http } = setup('ng');
     api.searchArtists('rema').subscribe();

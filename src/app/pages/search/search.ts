@@ -1,6 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   Observable,
@@ -173,6 +173,9 @@ export class SearchPage {
   }
 
   private readonly lyricsRetry$ = new Subject<void>();
+
+  /** Each new search starts on "All", so a tab picked earlier can't hide its results. */
+  private readonly resetTab = this.settledQuery$.pipe(takeUntilDestroyed()).subscribe(() => this.songTab.set('all'));
 
   /**
    * Songs whose lyrics contain the query: automatic from 4 words, or on the Lyrics tab. Kept apart

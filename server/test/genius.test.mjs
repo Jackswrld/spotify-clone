@@ -110,3 +110,29 @@ test('health reports whether lyric search is set up', async () => {
     await relay.close();
   }
 });
+
+test('Deezer down: the search fails (route 502) instead of "no songs", and nothing is cached', async () => {
+  const genius = fakeUpstream();
+  const fetch = async (url, init) => {
+    if (String(url).startsWith(DEEZER_TRACK)) return new Response('down', { status: 503 });
+    return genius(url, init);
+  };
+  const search = createLyricsSearch({ fetch, token: 'tok', now: () => 0 });
+  await assert.rejects(search('left the party'));
+  await assert.rejects(search('left the party'));
+  assert.equal(genius.calls.filter((u) => u.startsWith(GENIUS)).length, 2);
+});
+
+test('when only some Deezer checks fail, the hits found are returned but not cached', async () => {
+  const genius = fakeUpstream();
+  let failDave = true;
+  const fetch = async (url, init) => {
+    const q = String(url).startsWith(DEEZER_TRACK) ? new URL(url).searchParams.get('q') : '';
+    if (failDave && q === 'Dave Lesley') return new Response('down', { status: 503 });
+    return genius(url, init);
+  };
+  const search = createLyricsSearch({ fetch, token: 'tok', now: () => 0 });
+  assert.deepEqual((await search('left the party')).results.map((r) => r.title), ['WORTHLESS']);
+  failDave = false;
+  assert.deepEqual((await search('left the party')).results.map((r) => r.title), ['WORTHLESS', 'Lesley']);
+});

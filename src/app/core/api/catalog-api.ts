@@ -1,4 +1,4 @@
-import { dedupeSongs } from '../dedupe-songs';
+import { dedupeSongs, leadArtist } from '../dedupe-songs';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, InjectionToken, Signal, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
@@ -168,7 +168,8 @@ export class CatalogApi {
   /** Resolves a song known only by name (e.g. from Last.fm). Exact artist + title only. */
   findSong(artist: string, title: string): Observable<Track | null> {
     return this.searchSongs(`${artist} ${title}`, 5).pipe(
-      map((songs) => songs.find((s) => sameTitle(s.artistName, artist) && sameTitle(s.title, title)) ?? null),
+      // Lead artist only: Apple credits "Drake & 21 Savage" where Genius/Last.fm say "Drake".
+      map((songs) => songs.find((s) => sameTitle(leadArtist(s.artistName), leadArtist(artist)) && sameTitle(s.title, title)) ?? null),
     );
   }
 
