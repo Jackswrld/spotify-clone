@@ -43,6 +43,19 @@ export function exactKey(s) {
   return base(withoutFeat(s));
 }
 
+const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+
+/** YouTube's search snippets are HTML-encoded ("Choosin&#39; Texas", "Simon &amp; Garfunkel"). */
+export function decodeHtml(s) {
+  return String(s ?? '').replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, code) => {
+    if (code[0] === '#') {
+      const n = code[1] === 'x' || code[1] === 'X' ? parseInt(code.slice(2), 16) : Number(code.slice(1));
+      return Number.isFinite(n) && n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : whole;
+    }
+    return ENTITIES[code.toLowerCase()] ?? whole;
+  });
+}
+
 /** "PT1H2M3S" → 3723. */
 export function parseIsoDuration(iso) {
   const m = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(String(iso ?? ''));
@@ -57,14 +70,19 @@ export function parseIsoDuration(iso) {
  */
 export function score(c, song) {
   let s = 0;
+  const videoTitle = decodeHtml(c.title);
   const artist = normalise(song.artist);
-  const channel = normalise(c.channelTitle);
-  if (artist && (channel === `${artist} topic` || channel.includes(artist))) s += 3;
+  const channel = normalise(decodeHtml(c.channelTitle));
+  // VEVO channels write the name as one word ("EllaLangleyVEVO"), so also compare without spaces.
+  const squash = (x) => x.replace(/ /g, '');
+  if (artist && (channel === `${artist} topic` || channel.includes(artist) || squash(channel).includes(squash(artist)))) {
+    s += 3;
+  }
 
   const songTitle = normalise(song.title);
-  if (songTitle && normalise(c.title).includes(songTitle)) s += 2;
+  if (songTitle && normalise(videoTitle).includes(songTitle)) s += 2;
 
-  const rawTitle = String(c.title ?? '').toLowerCase();
+  const rawTitle = videoTitle.toLowerCase();
   const songWords = String(song.title ?? '').toLowerCase();
   const penalised = PENALTY_WORDS.some(
     (w) => new RegExp(`\\b${w}\\b`).test(rawTitle) && !new RegExp(`\\b${w}\\b`).test(songWords),
@@ -167,7 +185,11 @@ export async function matchSong({ fetch, key, cache, now }, { artist, title, dur
         const videoS = parseIsoDuration(d.contentDetails?.duration);
         if (!videoS || videoS >= MAX_VIDEO_S) continue;
         if (durationS > 0 && Math.abs(videoS - durationS) > DURATION_WINDOW_S) continue;
-        const candidate = { title: item.snippet?.title ?? '', channelTitle: item.snippet?.channelTitle ?? '', durationS: videoS };
+        const candidate = {
+          title: decodeHtml(item.snippet?.title),
+          channelTitle: decodeHtml(item.snippet?.channelTitle),
+          durationS: videoS,
+        };
         const s = score(candidate, { artist, title, durationS });
         if (s >= MIN_SCORE && (!best || s > best.confidence)) {
           best = { videoId: item.id.videoId, title: candidate.title, channel: candidate.channelTitle, confidence: s };

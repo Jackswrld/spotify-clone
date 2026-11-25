@@ -194,3 +194,24 @@ test('Japanese voicing marks are kept (only Latin accents are removed)', () => {
   assert.equal(normalise('アイドル'), 'アイドル');
   assert.notEqual(songKey('X', 'ぶ'), songKey('X', 'ふ'));
 });
+
+test('YouTube titles arrive HTML-encoded; an apostrophe or & still matches', () => {
+  const song = { artist: 'Ella Langley', title: "Choosin' Texas", durationS: 232 };
+  // Title (+2) and length (+2) only — the channel isn't the artist's.
+  assert.ok(score({ title: 'Ella Langley - Choosin&#39; Texas (Official Lyric Video)', channelTitle: 'Some Uploader', durationS: 232 }, song) >= 4);
+  // Channel only (+3): "Simon &amp; Garfunkel" must read as "Simon & Garfunkel".
+  const amp = { artist: 'Simon & Garfunkel', title: 'Cecilia', durationS: 0 };
+  assert.ok(score({ title: 'Something else', channelTitle: 'Simon &amp; Garfunkel', durationS: 0 }, amp) >= 3);
+});
+
+test('a VEVO channel that writes the artist as one word counts as the artist', () => {
+  const song = { artist: 'Ella Langley', title: "Choosin' Texas", durationS: 232 };
+  assert.ok(score({ title: 'Something else', channelTitle: 'EllaLangleyVEVO', durationS: 0 }, song) >= 3);
+});
+
+test('the match result carries the decoded video title', async () => {
+  const fetch = fakeYouTube([{ id: 'el1', title: 'Ella Langley - Choosin&#39; Texas (Official Lyric Video)', channel: 'EllaLangleyVEVO', duration: 'PT3M52S' }]);
+  const result = await matchSong({ fetch, key: 'k', cache: createMatchCache(tmpFile()), now: () => 0 }, { artist: 'Ella Langley', title: "Choosin' Texas", durationS: 232 });
+  assert.equal(result.videoId, 'el1');
+  assert.equal(result.title, "Ella Langley - Choosin' Texas (Official Lyric Video)");
+});
