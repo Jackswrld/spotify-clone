@@ -58,16 +58,18 @@ describe('NowPlayingView', () => {
     expect(el.textContent).toContain('Play something to see it here');
   });
 
-  it('shows the video slot instead of the cover for a YouTube song', () => {
+  it('shows the original cover art for a chart song (audio-only, no video)', () => {
     const { fixture, el, current } = setup();
-    current.set(makeTrack('apple:1', { source: 'catalog', appleId: '1', artistId: 'apple:9' }));
+    current.set(
+      makeTrack('apple:1', {
+        source: 'catalog', appleId: '1', artistId: 'apple:9',
+        artwork: { small: 's.jpg', medium: 'm.jpg', large: 'https://is1.mzstatic.com/x/600x600bb.jpg' },
+      }),
+    );
     fixture.detectChanges();
-    expect(el.querySelector('app-video-slot')).toBeTruthy();
-    expect(el.querySelector('.view > app-cover.art')).toBeNull();
-    current.set(makeTrack('1'));
-    fixture.detectChanges();
-    expect(el.querySelector('app-video-slot')).toBeNull();
     expect(el.querySelector('.view > app-cover.art')).toBeTruthy();
+    expect(el.querySelector('.view > app-cover.art img')?.getAttribute('src')).toBe('https://is1.mzstatic.com/x/600x600bb.jpg');
+    expect(el.querySelector('iframe, app-video-slot')).toBeNull();
   });
 
   it('loads the artist for the current track and swaps when the track changes', () => {

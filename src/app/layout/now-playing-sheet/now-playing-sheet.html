@@ -14,11 +14,7 @@
       <span class="spacer"></span>
     </header>
 
-    @if (track.source === 'catalog') {
-      <app-video-slot class="art" [priority]="3" />
-    } @else {
-      <app-cover class="art" [src]="track.artwork.large ?? track.artwork.medium" [seed]="track.id" [alt]="track.title" />
-    }
+    <app-cover class="art" [src]="track.artwork.large ?? track.artwork.medium" [seed]="track.id" [alt]="track.title" />
 
     <div class="info">
       <div class="meta">

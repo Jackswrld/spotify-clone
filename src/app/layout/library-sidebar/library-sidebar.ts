@@ -50,12 +50,10 @@ const STORAGE_KEY = 'library.sidebar';
       @if (state() !== 'collapsed') {
         <footer class="credit">
           Powered by <a href="https://audius.co" target="_blank" rel="noopener">Audius</a>
-          ·
-          @if (relay.youtubeReady()) {
-            Mainstream songs play via YouTube
-          } @else {
+          @if (!relay.youtubeReady()) {
+            ·
             <span title="Add a YouTube API key to server/.env (see the README, YouTube setup)">
-              YouTube playback isn't set up
+              Chart songs can't play yet
             </span>
           }
         </footer>

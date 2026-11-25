@@ -7,11 +7,9 @@ import { makeTrack } from '../core/testing/make-track';
 import { FakeAudio } from './testing/fake-audio';
 import { FakeEngine } from './testing/fake-yt';
 import { Engine } from './engines/engine';
-import { VideoDockService } from './video-dock.service';
 
 let lastAudio: FakeAudio;
 let yt: FakeEngine;
-const canShow = signal(true);
 
 @Injectable()
 class TestPlayer extends PlayerService {
@@ -33,7 +31,6 @@ function setup(random = () => 0) {
       { provide: PlayerService, useClass: TestPlayer },
       { provide: RANDOM, useValue: random },
       { provide: AudiusApi, useValue: { streamUrl: (id: string) => `stream:${id}` } },
-      { provide: VideoDockService, useValue: { canShow } },
     ],
   });
   return TestBed.inject(PlayerService);
@@ -45,7 +42,6 @@ const flush = () => new Promise((r) => setTimeout(r));
 describe('PlayerService', () => {
   beforeEach(() => {
     localStorage.clear();
-    canShow.set(true);
   });
   afterEach(() => localStorage.clear());
 
@@ -445,47 +441,26 @@ describe('PlayerService', () => {
       expect(p.error()).toBeNull();
     });
 
-    it('loads a catalog song paused with a notice when the dock cannot show', () => {
+    it('catalog songs are audio-only: the next one starts playing even in a hidden tab', () => {
       const p = setup();
       p.playTracks(MIX, 0);
       lastAudio.dispatch('playing');
-      canShow.set(false); // e.g. the tab is hidden
       lastAudio.dispatch('ended');
       expect(p.current()?.id).toBe('apple:c1');
-      expect(yt.calls).toContain('load:apple:c1:cue');
-      expect(p.isPlaying()).toBeFalse();
-      expect(p.notice()).toBe('Tap play to keep listening — this song plays via YouTube');
-      expect(p.error()).toBeNull();
+      expect(yt.calls).toContain('load:apple:c1:play');
+      expect(yt.calls).not.toContain('load:apple:c1:cue');
+      expect(p.isPlaying()).toBeTrue();
     });
 
-    it('pressing play while the dock cannot show keeps it paused with the notice', () => {
+    it('pressing play on a paused catalog song plays it', () => {
       const p = setup();
-      canShow.set(false);
       p.playTracks([C[0]], 0);
+      yt.emit({ type: 'playing' });
       p.toggle();
-      expect(yt.calls.filter((c) => c === 'play').length).toBe(0);
-      expect(p.isPlaying()).toBeFalse();
-    });
-
-    it('pauses when the page hides and resumes on return only if the user still wanted it playing', () => {
-      const p = setup();
-      p.playTracks([C[0]], 0);
-      yt.emit({ type: 'playing' });
-      canShow.set(false);
-      TestBed.flushEffects();
-      expect(yt.calls).toContain('pause');
-      canShow.set(true);
-      TestBed.flushEffects();
-      expect(yt.calls.filter((c) => c === 'play').length).toBe(1);
-
-      yt.emit({ type: 'playing' });
-      p.toggle(); // the user pauses
       yt.emit({ type: 'paused' });
-      canShow.set(false);
-      TestBed.flushEffects();
-      canShow.set(true);
-      TestBed.flushEffects();
+      p.toggle();
       expect(yt.calls.filter((c) => c === 'play').length).toBe(1);
+      expect(p.isPlaying()).toBeTrue();
     });
 
     it('no-match skips with a message and counts toward the cap', () => {

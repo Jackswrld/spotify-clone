@@ -13,7 +13,6 @@ import { LyricsService } from '../../state/lyrics.service';
 import { Cover } from '../../shared/cover/cover';
 import { LikeButton } from '../../shared/like-button/like-button';
 import { TrackRow } from '../../shared/track-row/track-row';
-import { VideoSlot } from '../../shared/video-slot/video-slot';
 import { LastfmAbout } from '../../shared/lastfm-about/lastfm-about';
 import { formatCount } from '../../shared/utils/format';
 import { loadable } from '../../shared/utils/loadable';
@@ -21,7 +20,7 @@ import { loadable } from '../../shared/utils/loadable';
 /** Right panel: details about what's playing. */
 @Component({
   selector: 'app-now-playing-view',
-  imports: [RouterLink, Cover, LikeButton, TrackRow, LastfmAbout, VideoSlot],
+  imports: [RouterLink, Cover, LikeButton, TrackRow, LastfmAbout],
   templateUrl: './now-playing-view.html',
   styleUrl: './now-playing-view.scss',
 })

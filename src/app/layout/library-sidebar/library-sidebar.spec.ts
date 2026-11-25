@@ -109,15 +109,15 @@ describe('LibrarySidebar', () => {
     expect(el.querySelector('a.item')?.getAttribute('href')).toBe('/catalog-artist/9');
   });
 
-  it('footer says mainstream songs play via YouTube, or that YouTube is not set up', () => {
+  it('footer never mentions YouTube; it only says when chart songs cannot play yet', () => {
     youtubeReady.set(true);
     let s = setup();
     expect(s.el.querySelector('.credit')?.textContent).toContain('Powered by Audius');
-    expect(s.el.querySelector('.credit')?.textContent).toContain('Mainstream songs play via YouTube');
+    expect(s.el.querySelector('.credit')?.textContent).not.toContain('YouTube');
     TestBed.resetTestingModule();
     youtubeReady.set(false);
     s = setup();
-    expect(s.el.querySelector('.credit')?.textContent).toContain("YouTube playback isn't set up");
+    expect(s.el.querySelector('.credit')?.textContent).toContain("Chart songs can't play yet");
     youtubeReady.set(true);
   });
 });
