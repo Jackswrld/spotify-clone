@@ -86,3 +86,41 @@ test('requests from other websites are refused before any upstream call', async 
     await relay.close();
   }
 });
+
+test('the Vercel site counts as this website; other sites are still refused', async () => {
+  const site = 'https://spotify-clone-eight-opal-82.vercel.app';
+  let relay = await startRelay({ fetch: fakeFetch({}), env: { VERCEL_PROJECT_PRODUCTION_URL: 'spotify-clone-eight-opal-82.vercel.app' } });
+  try {
+    const ok = await relay.get('/api/health', { origin: site });
+    assert.equal(ok.status, 200);
+    assert.equal(ok.headers.get('access-control-allow-origin'), site);
+    assert.equal((await relay.get('/api/health', { origin: 'https://evil.test' })).status, 403);
+  } finally {
+    await relay.close();
+  }
+  relay = await startRelay({ fetch: fakeFetch({}), env: {} });
+  try {
+    assert.equal((await relay.get('/api/health', { origin: site })).status, 403);
+  } finally {
+    await relay.close();
+  }
+  relay = await startRelay({ fetch: fakeFetch({}), env: { VERCEL_URL: 'spotify-clone-abc123.vercel.app', ALLOWED_ORIGINS: 'https://music.example.com, https://other.example.com' } });
+  try {
+    for (const o of ['https://spotify-clone-abc123.vercel.app', 'https://music.example.com', 'https://other.example.com']) {
+      assert.equal((await relay.get('/api/health', { origin: o })).status, 200, o);
+    }
+  } finally {
+    await relay.close();
+  }
+});
+
+test('on Vercel, rate limits count each visitor (x-forwarded-for), not the shared proxy address', async () => {
+  const relay = await startRelay({ fetch: fakeFetch({}), env: {}, now: () => 0 });
+  try {
+    for (let i = 0; i < 30; i++) await relay.get('/api/youtube/match?artist=Rema&title=Calm%20Down', { 'x-forwarded-for': '1.1.1.1' });
+    assert.equal((await relay.get('/api/youtube/match?artist=Rema&title=Calm%20Down', { 'x-forwarded-for': '1.1.1.1, 10.0.0.1' })).status, 429);
+    assert.equal((await relay.get('/api/youtube/match?artist=Rema&title=Calm%20Down', { 'x-forwarded-for': '2.2.2.2' })).status, 200);
+  } finally {
+    await relay.close();
+  }
+});
