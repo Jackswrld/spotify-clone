@@ -20,11 +20,8 @@ function fakeUpstream(hits = HITS) {
   const fetch = fakeFetch({
     [GENIUS]: () => ({ body: { meta: { status: 200 }, response: { hits } } }),
     [DEEZER_TRACK]: (url) => {
-      const q = decodeURIComponent(url);
-      const match = Object.entries(KNOWN).find(([key]) => {
-        const [artist, title] = key.split('|');
-        return q.includes(`artist:"${artist}"`) && q.includes(`track:"${title}"`);
-      });
+      const q = new URL(url).searchParams.get('q');
+      const match = Object.entries(KNOWN).find(([key]) => q === key.replace('|', ' '));
       if (!match) return { body: { data: [] } };
       const [artist, title] = match[0].split('|');
       return { body: { data: [{ title, duration: 180, artist: { name: artist }, album: { cover_xl: match[1] } }] } };

@@ -50,7 +50,10 @@ test('findTrack returns the exact artist + title match with its cover and length
   const fetch = fakeDeezer();
   const deezer = createDeezer({ fetch, now: () => 0 });
   assert.deepEqual(await deezer.findTrack('Rema', 'Calm Down'), { cover: 'rema.jpg', durationS: 239 });
-  assert.ok(decodeURIComponent(fetch.calls[0]).includes('artist:"Rema" track:"Calm Down"'));
+  // Deezer's strict artist:"…" track:"…" search misses real songs (e.g. d4vd "WORTHLESS"); the plain
+  // search finds them, and the exact-name check below filters the rest.
+  const q = new URL(fetch.calls[0]).searchParams.get('q');
+  assert.equal(q, 'Rema Calm Down');
   assert.equal(await deezer.findTrack('Charles Dickens', 'Great Expectations (Chap. 8)'), null);
 });
 

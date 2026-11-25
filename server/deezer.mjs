@@ -43,8 +43,9 @@ export function createDeezer({ fetch, now }) {
     /** The song by exactly this artist and title, or null (e.g. a book chapter on Genius). */
     findTrack(artist, title) {
       return cached(`track|${exactKey(artist)}|${exactKey(title)}`, async () => {
-        const q = `artist:"${artist.replace(/"/g, '')}" track:"${title.replace(/"/g, '')}"`;
-        const body = await getJson(`${BASE}/search?q=${encodeURIComponent(q)}&limit=10`);
+        // Plain search: Deezer's strict artist:"…" track:"…" form misses real songs. The exact-name
+        // check below keeps out covers, audiobooks and near titles.
+        const body = await getJson(`${BASE}/search?q=${encodeURIComponent(`${artist} ${title}`)}&limit=10`);
         const hit = (body.data ?? []).find(
           (t) => exactKey(t.artist?.name) === exactKey(artist) && exactKey(t.title) === exactKey(title),
         );
