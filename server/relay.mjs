@@ -43,13 +43,13 @@ function send(res, status, body, origin, allowed = DEV_ORIGINS) {
 }
 
 /**
- * @param {{ fetch: typeof fetch, env: Record<string, string|undefined>, now?: () => number, cacheFile?: string }} deps
+ * @param {{ fetch: typeof fetch, env: Record<string, string|undefined>, now?: () => number, cacheFile?: string, cache?: object }} deps
  * @returns {(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => void}
  */
-export function createRelay({ fetch, env, now = Date.now, cacheFile }) {
+export function createRelay({ fetch, env, now = Date.now, cacheFile, cache }) {
   const allowed = allowedOrigins(env);
   const fetchChart = createChartFetcher({ fetch, now });
-  const matchCache = createMatchCache(cacheFile);
+  const matchCache = cache ?? createMatchCache(cacheFile);
   const deezer = createDeezer({ fetch, now });
   const searchLyrics = createLyricsSearch({ fetch, token: env.GENIUS_ACCESS_TOKEN ?? '', now, deezer });
   /** route|ip → { windowStart, count } */

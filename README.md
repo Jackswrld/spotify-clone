@@ -54,6 +54,25 @@ in `server/`, restart `npm start`.
   `lastFmApiKey` (create one at https://www.last.fm/api/account/create). Without it, artist bios,
   similar artists and the global chart stay hidden.
 
+## Deploy on Vercel
+
+The site and the music server deploy together: `api/[...path].mjs` runs the same relay as
+`npm start`, as a Vercel Function. Pushing to GitHub redeploys.
+
+One-time setup in the Vercel dashboard (your project → **Settings**):
+
+1. **Environment Variables:** add `YOUTUBE_API_KEY` and `GENIUS_ACCESS_TOKEN` (same values as
+   `server/.env`), for Production and Preview. Keys never go in git.
+2. **Storage:** open the **Storage** tab → **Upstash Redis** (free) → create a database → **Connect**
+   it to this project. Vercel adds `KV_REST_API_URL` and `KV_REST_API_TOKEN` for you. This is where
+   the site remembers which YouTube video belongs to which song, so each song costs one YouTube search
+   ever, shared by everyone who visits.
+3. **Redeploy** (or push) so the new variables are used.
+
+Your Vercel address is accepted automatically. For a custom domain, add it to `ALLOWED_ORIGINS`
+(comma-separated, e.g. `https://music.example.com`). Without Redis the site still works, but the
+memory resets often and the 100 daily YouTube searches run out faster.
+
 ## Lyric search setup
 
 Search can find a song from a line of its lyrics (the **Lyrics** tab, or type 4 or more words).
