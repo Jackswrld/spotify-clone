@@ -162,6 +162,43 @@ describe('SearchPage', () => {
     expect(top.textContent).toContain('Rema');
   }));
 
+  it('a song title beats a small artist with the same name (found live: an artist called "Calm Down")', fakeAsync(() => {
+    const { setQ, respond, el, catalog, photos } = setup();
+    catalog.searchArtists.and.returnValue(of([appleArtist('3', 'Calm Down')]));
+    photos['Calm Down'] = { image: 'cd.jpg', fans: 1_291 };
+    setQ('calm down');
+    tick(300);
+    respond('calm down', { songs: [apple('1', 'Calm Down', 'Rema')] });
+    const top = el.querySelector('.top-result') as HTMLElement;
+    expect(top.textContent).toContain('Song');
+    expect(top.textContent).toContain('Rema');
+  }));
+
+  it('a big artist still wins over a song with the same title', fakeAsync(() => {
+    const { setQ, respond, el, catalog, photos } = setup();
+    catalog.searchArtists.and.returnValue(of([appleArtist('9', 'Wizkid')]));
+    photos['Wizkid'] = { image: 'w.jpg', fans: 1_005_217 };
+    setQ('wizkid');
+    tick(300);
+    respond('wizkid', { songs: [apple('1', 'Wizkid', 'Somebody')] });
+    expect(el.querySelector('.top-result a')?.getAttribute('href')).toBe('/catalog-artist/9');
+  }));
+
+  it('artists with the same name appear once', fakeAsync(() => {
+    const { setQ, respond, el, catalog, photos } = setup();
+    catalog.searchArtists.and.returnValue(
+      of([appleArtist('1', 'Rema'), appleArtist('2', 'Calm Down'), appleArtist('3', 'Calm Down'), appleArtist('4', 'calm down')]),
+    );
+    photos['Rema'] = { image: 'r.jpg', fans: 580_691 };
+    photos['Calm Down'] = { image: 'cd.jpg', fans: 1_291 };
+    photos['calm down'] = { image: 'cd.jpg', fans: 1_291 };
+    setQ('calm down');
+    tick(300);
+    respond('calm down', {});
+    const titles = [...el.querySelectorAll('section[aria-label="Artists"] app-media-card .title')].map((t) => t.textContent?.trim());
+    expect(titles).toEqual(['Rema', 'Calm Down']);
+  }));
+
   it('Top result falls back to the first song', fakeAsync(() => {
     const { setQ, respond, el, catalog } = setup();
     catalog.searchArtists.and.returnValue(of([appleArtist('7', 'Rainy')]));

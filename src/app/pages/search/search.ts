@@ -39,6 +39,8 @@ const MIN_QUERY = 2;
 /** Fewer Deezer fans than this = a namesake, not the artist people mean. */
 const MIN_FANS = 1_000;
 const MAX_ARTISTS = 6;
+/** An artist this big beats a song with the same title for Top result (Wizkid, Drake). */
+const BIG_ARTIST_FANS = 100_000;
 /** From this many words a query looks like a remembered lyric line. */
 const LYRIC_WORDS = 4;
 
@@ -160,8 +162,11 @@ export class SearchPage {
       );
     return forkJoin(artists.map(withPhoto)).pipe(
       map((withPhotos) => {
-        const real = withPhotos.filter((a) => a.followerCount >= MIN_FANS);
-        const shown = real.length ? real : withPhotos;
+        // Apple often lists several artists with one name; they share a photo, so show one.
+        const seen = new Set<string>();
+        const unique = withPhotos.filter((a) => !seen.has(exactKey(a.name)) && seen.add(exactKey(a.name)));
+        const real = unique.filter((a) => a.followerCount >= MIN_FANS);
+        const shown = real.length ? real : unique;
         return [...shown].sort((a, b) => b.followerCount - a.followerCount).slice(0, MAX_ARTISTS);
       }),
     );
@@ -241,10 +246,12 @@ export class SearchPage {
     if (s.status !== 'ready') return null;
     const q = exactKey(s.q);
     const artist = s.artists.find((a) => exactKey(a.name) === q);
-    if (artist) return { kind: 'artist', artist };
     const songs = this.allSongs();
     const titleMatch = songs.findIndex((t) => exactKey(t.title) === q);
+    // "calm down": the song, not a small artist called "Calm Down". "wizkid": the artist.
+    if (artist && (titleMatch < 0 || artist.followerCount >= BIG_ARTIST_FANS)) return { kind: 'artist', artist };
     if (titleMatch >= 0) return { kind: 'track', track: songs[titleMatch], index: titleMatch };
+    if (artist) return { kind: 'artist', artist };
     if (songs.length) return { kind: 'track', track: songs[0], index: 0 };
     if (s.artists.length) return { kind: 'artist', artist: s.artists[0] };
     return null;
