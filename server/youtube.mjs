@@ -155,7 +155,7 @@ async function getJson(fetch, url) {
  */
 export async function matchSong({ fetch, key, cache, now }, { artist, title, durationS = 0 }) {
   const cacheKey = songKey(artist, title);
-  const hit = cache.get(cacheKey, now());
+  const hit = await cache.get(cacheKey, now());
   if (hit) {
     return hit.videoId
       ? { videoId: hit.videoId, title: hit.title, channel: hit.channel, confidence: hit.confidence }
@@ -196,7 +196,7 @@ export async function matchSong({ fetch, key, cache, now }, { artist, title, dur
         }
       }
     }
-    cache.set(cacheKey, best ? { ...best, at: now() } : { videoId: null, at: now() });
+    await cache.set(cacheKey, best ? { ...best, at: now() } : { videoId: null, at: now() });
     return best ?? { videoId: null, reason: 'no-match' };
   } catch (err) {
     if (err instanceof QuotaError) return { videoId: null, reason: 'quota' };

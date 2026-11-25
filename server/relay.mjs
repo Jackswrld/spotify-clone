@@ -120,7 +120,7 @@ export function createRelay({ fetch, env, now = Date.now, cacheFile }) {
         const artist = (url.searchParams.get('artist') ?? '').trim();
         const title = (url.searchParams.get('title') ?? '').trim();
         if (!artist || !title) return send(res, 400, { error: 'bad_request' }, origin);
-        matchCache.delete(songKey(artist, title));
+        await matchCache.delete(songKey(artist, title));
         return send(res, 200, { ok: true }, origin);
       }
 
