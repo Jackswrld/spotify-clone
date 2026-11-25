@@ -72,16 +72,29 @@ test('without Redis it still works (memory only) and never touches Redis', async
   }
 });
 
-test('the Vercel function file answers /api/health', async () => {
-  const mod = await import('../../api/[...path].mjs');
+test('the Vercel function restores the original /api path from the rewrite (deep paths included)', async () => {
+  const mod = await import('../../api/relay.mjs');
   const relay = await serve(mod.default);
   try {
-    const res = await relay.get('/api/health');
-    assert.equal(res.status, 200);
-    assert.equal((await res.json()).ok, true);
+    // What Vercel sends after the rewrite: /api/relay?__path=health
+    const health = await relay.get('/api/relay?__path=health');
+    assert.equal(health.status, 200);
+    assert.equal((await health.json()).ok, true);
+    // Deep path with its own query string kept: bad chart → the relay's own 400, not a 404.
+    assert.equal((await relay.get('/api/relay?__path=charts/zz/songs/25')).status, 400);
+    assert.equal((await relay.get('/api/relay?__path=youtube/match&artist=Rema')).status, 400);
+    // If Vercel already passed the original URL, it still works.
+    assert.equal((await relay.get('/api/health')).status, 200);
   } finally {
     await relay.close();
   }
+});
+
+test('vercel.json sends every /api/* request to the relay function, before the page fallback', async () => {
+  const fs = await import('node:fs');
+  const config = JSON.parse(fs.readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
+  assert.deepEqual(config.rewrites[0], { source: '/api/:path*', destination: '/api/relay?__path=:path*' });
+  assert.ok(!fs.existsSync(new URL('../../api/[...path].mjs', import.meta.url)));
 });
 
 test('vercel.json: pages fall back to index.html, but /api/* always reaches the function', async () => {

@@ -56,7 +56,7 @@ in `server/`, restart `npm start`.
 
 ## Deploy on Vercel
 
-The site and the music server deploy together: `api/[...path].mjs` runs the same relay as
+The site and the music server deploy together: `api/relay.mjs` runs the same relay as
 `npm start`, as a Vercel Function. Pushing to GitHub redeploys.
 
 One-time setup in the Vercel dashboard (your project → **Settings**):
