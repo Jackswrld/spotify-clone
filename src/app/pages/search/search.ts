@@ -1,8 +1,24 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Observable, Subject, catchError, debounceTime, distinctUntilChanged, forkJoin, map, of, startWith, switchMap } from 'rxjs';
+import {
+  Observable,
+  Subject,
+  catchError,
+  combineLatest,
+  debounceTime,
+  distinctUntilChanged,
+  forkJoin,
+  map,
+  of,
+  shareReplay,
+  startWith,
+  switchMap,
+} from 'rxjs';
 import { ArtistPhotoApi } from '../../core/api/artist-photo-api';
+import { LyricHit, LyricsSearchApi, LyricsSearchResult } from '../../core/api/lyrics-search-api';
+import { ToastService } from '../../state/toast.service';
 import { AudiusApi } from '../../core/api/audius-api';
 import { Album, Artist, Playlist, Track } from '../../core/models';
 import { CatalogApi } from '../../core/api/catalog-api';
@@ -23,6 +39,12 @@ const MIN_QUERY = 2;
 /** Fewer Deezer fans than this = a namesake, not the artist people mean. */
 const MIN_FANS = 1_000;
 const MAX_ARTISTS = 6;
+/** From this many words a query looks like a remembered lyric line. */
+const LYRIC_WORDS = 4;
+
+type LyricsState = null | 'loading' | LyricsSearchResult;
+
+const wordCount = (q: string) => q.split(/\s+/).filter(Boolean).length;
 
 type SearchState =
   | { status: 'idle' }
@@ -42,7 +64,7 @@ type TopResult = { kind: 'artist'; artist: Artist } | { kind: 'track'; track: Tr
 
 @Component({
   selector: 'app-search-page',
-  imports: [RouterLink, TrackRow, MediaCard, Cover, Skeleton, ErrorState],
+  imports: [RouterLink, NgTemplateOutlet, TrackRow, MediaCard, Cover, Skeleton, ErrorState],
   templateUrl: './search.html',
   styleUrl: './search.scss',
 })
@@ -53,6 +75,8 @@ export class SearchPage {
   protected readonly artistLink = artistLink;
   protected readonly albumLink = albumLink;
   private readonly photos = inject(ArtistPhotoApi);
+  private readonly lyricsApi = inject(LyricsSearchApi);
+  private readonly toast = inject(ToastService);
   protected readonly songTab = signal<'all' | 'independent' | 'lyrics'>('all');
   private readonly router = inject(Router);
   protected readonly player = inject(PlayerService);
@@ -71,10 +95,10 @@ export class SearchPage {
 
   private readonly retry$ = new Subject<void>();
 
+  private readonly settledQuery$ = this.query$.pipe(debounceTime(300), distinctUntilChanged(), shareReplay(1));
+
   protected readonly state = toSignal(
-    this.query$.pipe(
-      debounceTime(300),
-      distinctUntilChanged(),
+    this.settledQuery$.pipe(
       switchMap((q) => {
         if (q.length < MIN_QUERY) return of<SearchState>({ status: 'idle' });
         return this.retry$.pipe(
@@ -143,6 +167,54 @@ export class SearchPage {
     );
   }
 
+  private readonly lyricsRetry$ = new Subject<void>();
+
+  /**
+   * Songs whose lyrics contain the query: automatic from 4 words, or on the Lyrics tab. Kept apart
+   * from the main results so a slow lyric search never holds them up.
+   */
+  protected readonly lyrics = toSignal(
+    combineLatest([this.settledQuery$, toObservable(this.songTab)]).pipe(
+      map(([q, tab]) => (q.length >= MIN_QUERY && (tab === 'lyrics' || wordCount(q) >= LYRIC_WORDS) ? q : '')),
+      distinctUntilChanged(),
+      switchMap((q) =>
+        !q
+          ? of<LyricsState>(null)
+          : this.lyricsRetry$.pipe(
+              startWith(undefined),
+              switchMap(() => this.lyricsApi.search(q).pipe(startWith<LyricsState>('loading'))),
+            ),
+      ),
+    ),
+    { initialValue: null as LyricsState },
+  );
+
+  protected readonly lyricHits = computed(() => {
+    const l = this.lyrics();
+    return Array.isArray(l) ? l : [];
+  });
+
+  /** The automatic section under Songs (the Lyrics tab shows the same hits in the Songs list instead). */
+  protected readonly showLyricSection = computed(
+    () => this.songTab() !== 'lyrics' && wordCount(this.rawQuery()) >= LYRIC_WORDS && this.lyrics() !== null,
+  );
+
+  protected readonly lyricStatus = computed(() => {
+    const l = this.lyrics();
+    return l === null || Array.isArray(l) ? 'hits' : l;
+  });
+
+  protected retryLyrics(): void {
+    this.lyricsRetry$.next();
+  }
+
+  protected playLyric(hit: LyricHit): void {
+    this.catalog.findSong(hit.artist, hit.title).subscribe({
+      next: (song) => (song ? this.player.playTracks([song], 0) : this.toast.show("Couldn't find this song to play")),
+      error: () => this.toast.show("Couldn't find this song to play"),
+    });
+  }
+
   /** The mainstream (Apple) songs. */
   protected readonly allSongs = computed(() => {
     const s = this.state();
@@ -182,6 +254,8 @@ export class SearchPage {
     const s = this.state();
     return (
       s.status === 'ready' &&
+      this.lyricHits().length === 0 &&
+      this.lyrics() !== 'loading' &&
       !s.catalogSongs.length &&
       !s.audiusSongs.length &&
       !s.artists.length &&

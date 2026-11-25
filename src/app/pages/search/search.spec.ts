@@ -11,6 +11,8 @@ import { FakeMedia, installFakeMatchMedia } from '../../state/testing-media';
 import { CatalogApi } from '../../core/api/catalog-api';
 import { Album } from '../../core/models';
 import { ArtistPhoto, ArtistPhotoApi } from '../../core/api/artist-photo-api';
+import { LyricHit, LyricsSearchApi, LyricsSearchResult } from '../../core/api/lyrics-search-api';
+import { ToastService } from '../../state/toast.service';
 
 function artist(id: string, name: string): Artist {
   return {
@@ -52,7 +54,9 @@ function setup() {
     searchSongs: jasmine.createSpy('searchSongs').and.callFake((q: string) => get(q).songs as Observable<Track[]>),
     searchArtists: jasmine.createSpy('searchArtists').and.returnValue(of([])),
     searchAlbums: jasmine.createSpy('searchAlbums').and.returnValue(of([])),
+    findSong: jasmine.createSpy('findSong').and.returnValue(of(null)),
   };
+  const lyrics = { search: jasmine.createSpy('search').and.returnValue(of([] as LyricHit[])) as jasmine.Spy<(q: string) => Observable<LyricsSearchResult>> };
   /** Deezer answers, by artist name. */
   const photos: Record<string, ArtistPhoto> = {};
   const player = { playTracks: jasmine.createSpy('playTracks'), current: signal(null), isPlaying: signal(false) };
@@ -64,6 +68,7 @@ function setup() {
       { provide: AudiusApi, useValue: api },
       { provide: PlayerService, useValue: player },
       { provide: CatalogApi, useValue: catalog },
+      { provide: LyricsSearchApi, useValue: lyrics },
       { provide: ArtistPhotoApi, useValue: { photoFor: (name: string) => of<ArtistPhoto>(photos[name] ?? { image: null, fans: 0 }) } },
     ],
   });
@@ -87,6 +92,7 @@ function setup() {
     api,
     player,
     catalog,
+    lyrics,
     photos,
     respond,
     setQ: (q: string) => {
@@ -290,5 +296,124 @@ describe('SearchPage', () => {
     tick(300);
     respond('beat', { songs: [apple('1', 'Beat One')] });
     expect(el.textContent).toContain('Beat One');
+  }));
+});
+
+describe('SearchPage lyric search', () => {
+  let media: FakeMedia;
+  beforeEach(() => (media = installFakeMatchMedia(1280)));
+  afterEach(() => media.restore());
+
+  const HIT: LyricHit = { title: 'WORTHLESS', artist: 'd4vd', image: 'worthless.jpg', durationS: 180 };
+  const LONG = 'left the party with a girl';
+  const section = (el: HTMLElement) => el.querySelector('section[aria-label="Songs with these lyrics"]') as HTMLElement | null;
+
+  it('a 3-word query makes no lyric request', fakeAsync(() => {
+    const { setQ, respond, lyrics } = setup();
+    setQ('dont want me');
+    tick(300);
+    respond('dont want me', {});
+    expect(lyrics.search).not.toHaveBeenCalled();
+  }));
+
+  it('4 or more words show "Songs with these lyrics" with title, artist and cover', fakeAsync(() => {
+    const { setQ, respond, el, lyrics, fixture } = setup();
+    lyrics.search.and.returnValue(of([HIT]));
+    setQ(LONG);
+    tick(300);
+    respond(LONG, { songs: [apple('1', 'Party Song')] });
+    fixture.detectChanges();
+    expect(lyrics.search).toHaveBeenCalledWith(LONG);
+    const s = section(el)!;
+    expect(s.querySelector('h2')?.textContent).toContain('Songs with these lyrics');
+    expect(s.textContent).toContain('WORTHLESS');
+    expect(s.textContent).toContain('d4vd');
+    expect(s.querySelector('img')?.getAttribute('src')).toBe('worthless.jpg');
+    expect(el.textContent).toContain('Party Song');
+  }));
+
+  it('lyric hits show even when Apple finds nothing for the words', fakeAsync(() => {
+    const { setQ, respond, el, lyrics, fixture } = setup();
+    lyrics.search.and.returnValue(of([HIT]));
+    setQ(LONG);
+    tick(300);
+    respond(LONG, {});
+    fixture.detectChanges();
+    expect(section(el)?.textContent).toContain('WORTHLESS');
+    expect(el.textContent).not.toContain('No results');
+  }));
+
+  it('the Lyrics tab searches lyrics for a short query too', fakeAsync(() => {
+    const { setQ, respond, el, lyrics, fixture } = setup();
+    lyrics.search.and.returnValue(of([HIT]));
+    setQ('worthless');
+    tick(300);
+    respond('worthless', { songs: [apple('1', 'Worthless Song')] });
+    expect(lyrics.search).not.toHaveBeenCalled();
+    const tab = [...el.querySelectorAll('.song-tabs button')].find((b) => b.textContent?.trim() === 'Lyrics') as HTMLButtonElement;
+    tab.click();
+    fixture.detectChanges();
+    tick(1);
+    fixture.detectChanges();
+    expect(lyrics.search).toHaveBeenCalledWith('worthless');
+    expect(el.querySelector('.songs')?.textContent).toContain('d4vd');
+  }));
+
+  it('tapping a hit finds the song on Apple and plays it; if Apple lacks it, a toast says so', fakeAsync(() => {
+    const { setQ, respond, el, lyrics, catalog, player, fixture } = setup();
+    lyrics.search.and.returnValue(of([HIT, { ...HIT, title: 'Unknown', artist: 'Nobody' }]));
+    const found = apple('77', 'WORTHLESS', 'd4vd');
+    catalog.findSong.and.callFake((artist: string) => of(artist === 'd4vd' ? found : null));
+    setQ(LONG);
+    tick(300);
+    respond(LONG, {});
+    fixture.detectChanges();
+    const buttons = [...section(el)!.querySelectorAll('button.lyric-hit')] as HTMLButtonElement[];
+    buttons[0].click();
+    expect(catalog.findSong).toHaveBeenCalledWith('d4vd', 'WORTHLESS');
+    expect(player.playTracks).toHaveBeenCalledWith([found], 0);
+    buttons[1].click();
+    expect(TestBed.inject(ToastService).message()).toBe("Couldn't find this song to play");
+    tick(5000);
+  }));
+
+  it('not set up, or an error with Retry, while the other results still show', fakeAsync(() => {
+    const { setQ, respond, el, lyrics, fixture } = setup();
+    lyrics.search.and.returnValue(of('not-set-up' as const));
+    setQ(LONG);
+    tick(300);
+    respond(LONG, { songs: [apple('1', 'Party Song')] });
+    fixture.detectChanges();
+    expect(section(el)?.textContent).toContain("Lyric search isn't set up");
+    expect(el.textContent).toContain('Party Song');
+
+    lyrics.search.and.returnValue(of('error' as const));
+    setQ(LONG + ' again');
+    tick(300);
+    respond(LONG + ' again', { songs: [apple('2', 'Other Song')] });
+    fixture.detectChanges();
+    expect(section(el)?.querySelector('app-error-state')).toBeTruthy();
+    expect(el.textContent).toContain('Other Song');
+    lyrics.search.and.returnValue(of([HIT]));
+    (section(el)!.querySelector('button.retry') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(section(el)?.textContent).toContain('WORTHLESS');
+  }));
+
+  it('a newer query replaces older lyric results', fakeAsync(() => {
+    const { setQ, respond, el, lyrics, fixture } = setup();
+    const first = new Subject<LyricsSearchResult>();
+    const second = new Subject<LyricsSearchResult>();
+    lyrics.search.and.returnValues(first, second);
+    setQ(LONG);
+    tick(300);
+    setQ('a different line of words');
+    tick(300);
+    respond('a different line of words', {});
+    second.next([{ ...HIT, title: 'Newest Lyric' }]);
+    first.next([{ ...HIT, title: 'Stale Lyric' }]);
+    fixture.detectChanges();
+    expect(el.textContent).toContain('Newest Lyric');
+    expect(el.textContent).not.toContain('Stale Lyric');
   }));
 });

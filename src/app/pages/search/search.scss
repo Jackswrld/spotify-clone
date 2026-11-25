@@ -192,3 +192,54 @@ h2 {
     font-size: 16px;
   }
 }
+
+.lyric-hits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.lyric-hit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--radius-s, 4px);
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  &:hover,
+  &:focus-visible {
+    background: var(--hover);
+  }
+}
+
+.lyric-art {
+  width: 40px;
+  height: 40px;
+  flex: none;
+}
+
+.lyric-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lyric-title,
+.lyric-artist {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lyric-artist,
+.lyric-note {
+  color: var(--text-muted);
+  font-size: 13px;
+}

@@ -68,14 +68,26 @@
                 <div class="song-tabs" role="group" aria-label="Song source">
                   <button type="button" [class.active]="songTab() === 'all'" [attr.aria-pressed]="songTab() === 'all'" (click)="songTab.set('all')">All</button>
                   <button type="button" [class.active]="songTab() === 'independent'" [attr.aria-pressed]="songTab() === 'independent'" (click)="songTab.set('independent')">Independent</button>
+                  <button type="button" [class.active]="songTab() === 'lyrics'" [attr.aria-pressed]="songTab() === 'lyrics'" (click)="songTab.set('lyrics')">Lyrics</button>
                 </div>
               </div>
-              @for (track of songs(); track track.id; let i = $index) {
-                <app-track-row [track]="track" [index]="i" (play)="playSong(i)" />
+              @if (songTab() === 'lyrics') {
+                <ng-container *ngTemplateOutlet="lyricList" />
+              } @else {
+                @for (track of songs(); track track.id; let i = $index) {
+                  <app-track-row [track]="track" [index]="i" (play)="playSong(i)" />
+                }
               }
             </section>
           }
         </div>
+
+        @if (showLyricSection()) {
+          <section class="group lyric-section" aria-label="Songs with these lyrics">
+            <h2>Songs with these lyrics</h2>
+            <ng-container *ngTemplateOutlet="lyricList" />
+          </section>
+        }
 
         @if (s.artists.length) {
           <section class="group" aria-label="Artists">
@@ -135,3 +147,36 @@
     }
   }
 </div>
+
+<ng-template #lyricList>
+  @switch (lyricStatus()) {
+    @case ('loading') {
+      <app-skeleton shape="row" [count]="3" />
+    }
+    @case ('not-set-up') {
+      <p class="lyric-note">Lyric search isn't set up. See the README, "Lyric search setup".</p>
+    }
+    @case ('error') {
+      <app-error-state message="Couldn't search lyrics right now." (retry)="retryLyrics()" />
+    }
+    @default {
+      @if (lyricHits().length) {
+        <ul class="lyric-hits">
+          @for (hit of lyricHits(); track hit.artist + '|' + hit.title) {
+            <li>
+              <button type="button" class="lyric-hit" [attr.aria-label]="'Play ' + hit.title + ' by ' + hit.artist" (click)="playLyric(hit)">
+                <app-cover class="lyric-art" [src]="hit.image" [seed]="hit.artist + hit.title" [alt]="''" />
+                <span class="lyric-meta">
+                  <span class="lyric-title">{{ hit.title }}</span>
+                  <span class="lyric-artist">{{ hit.artist }}</span>
+                </span>
+              </button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="lyric-note">No songs found with these lyrics.</p>
+      }
+    }
+  }
+</ng-template>
