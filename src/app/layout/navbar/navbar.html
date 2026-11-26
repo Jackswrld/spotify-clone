@@ -25,7 +25,7 @@
           type="search"
           placeholder="What do you want to play?"
           autocomplete="off"
-          [value]="query()"
+          [value]="box()"
           (input)="onSearch($any($event.target).value)"
         />
       </label>

@@ -95,6 +95,13 @@ export class SearchPage {
 
   protected readonly rawQuery = toSignal(this.query$, { initialValue: '' });
 
+  /** The phone search box: what was typed, spaces included (the address bar keeps it trimmed). */
+  protected readonly box = signal('');
+
+  private readonly syncBox = this.query$
+    .pipe(takeUntilDestroyed())
+    .subscribe((q) => q !== this.box().trim() && this.box.set(q));
+
   private readonly retry$ = new Subject<void>();
 
   private readonly settledQuery$ = this.query$.pipe(debounceTime(300), distinctUntilChanged(), shareReplay(1));
@@ -273,6 +280,11 @@ export class SearchPage {
       !s.playlists.length
     );
   });
+
+  protected onType(value: string): void {
+    this.box.set(value);
+    this.search(value.trim());
+  }
 
   protected search(q: string): void {
     this.router.navigate(['/search'], { queryParams: q ? { q } : {}, replaceUrl: true });

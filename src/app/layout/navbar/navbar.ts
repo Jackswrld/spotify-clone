@@ -1,8 +1,8 @@
-import { Component, DestroyRef, inject } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { Location } from '@angular/common';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { Subject, debounceTime, filter, map } from 'rxjs';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LayoutService } from '../../state/layout.service';
 
 @Component({
@@ -18,16 +18,22 @@ export class Navbar {
 
   private readonly typed = new Subject<string>();
 
-  /** Mirrors ?q= so the box shows the current search after navigation. */
-  protected readonly query = toSignal(
-    this.router.events.pipe(
-      filter((e) => e instanceof NavigationEnd),
-      map(() => this.router.parseUrl(this.router.url).queryParamMap.get('q') ?? ''),
-    ),
-    { initialValue: '' },
-  );
+  /**
+   * What the box shows: exactly what was typed (spaces included). The address bar holds the
+   * trimmed search, so it only replaces the box when it says something else (back button, a link).
+   */
+  protected readonly box = signal('');
 
   constructor() {
+    this.router.events
+      .pipe(
+        filter((e) => e instanceof NavigationEnd),
+        map(() => this.router.parseUrl(this.router.url).queryParamMap.get('q') ?? ''),
+        takeUntilDestroyed(),
+      )
+      .subscribe((q) => {
+        if (q !== this.box().trim()) this.box.set(q);
+      });
     this.typed
       .pipe(debounceTime(300), takeUntilDestroyed(inject(DestroyRef)))
       .subscribe((q) => {
@@ -47,6 +53,7 @@ export class Navbar {
   }
 
   protected onSearch(value: string): void {
+    this.box.set(value);
     this.typed.next(value.trim());
   }
 }

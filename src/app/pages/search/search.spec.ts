@@ -471,3 +471,33 @@ describe('SearchPage lyric search', () => {
     expect(el.textContent).not.toContain('Stale Lyric');
   }));
 });
+
+describe('SearchPage phone search box', () => {
+  let media: FakeMedia;
+  beforeEach(() => (media = installFakeMatchMedia(375)));
+  afterEach(() => media.restore());
+
+  const box = (el: HTMLElement) => el.querySelector<HTMLInputElement>('.phone-search input')!;
+  const type = (t: ReturnType<typeof setup>, value: string) => {
+    box(t.el).value = value;
+    box(t.el).dispatchEvent(new Event('input'));
+    t.fixture.detectChanges();
+  };
+
+  it('keeps the space just typed when the address bar catches up', () => {
+    const t = setup();
+    type(t, 'Michael ');
+    t.setQ('Michael'); // the URL holds the trimmed search
+    expect(box(t.el).value).toBe('Michael ');
+    type(t, 'Michael Jackson');
+    t.setQ('Michael Jackson');
+    expect(box(t.el).value).toBe('Michael Jackson');
+  });
+
+  it('shows a search that comes from elsewhere (back button, a link)', () => {
+    const t = setup();
+    type(t, 'Michael ');
+    t.setQ('Adele');
+    expect(box(t.el).value).toBe('Adele');
+  });
+});
