@@ -1,3 +1,5 @@
+@use 'themes';
+
 /* Design tokens. Components use these custom properties instead of raw colours. */
 :root {
   --bg: #121212;
@@ -24,6 +26,8 @@
   --mini-h: 64px;
   --tap: 44px;
   --font: 'DM Sans', system-ui, sans-serif;
+  /* How strongly cover colours tint headers (light themes use a softer wash). */
+  --tint-mix: 100%;
 }
 
 *,

@@ -16,6 +16,7 @@ import { ShortcutsService } from './state/shortcuts.service';
 import { artworkColor } from './shared/utils/artwork-color';
 import { LayoutService } from './state/layout.service';
 import { PanelStateService } from './state/panel-state.service';
+import { ThemeService } from './state/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -38,6 +39,7 @@ export class App {
 
   constructor() {
     inject(ShortcutsService).start();
+    inject(ThemeService); // applies the saved colour theme
     effect(() => {
       const message = this.player.error();
       if (message) this.toast.show(message);

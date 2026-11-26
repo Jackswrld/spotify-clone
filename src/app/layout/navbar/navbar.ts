@@ -4,10 +4,11 @@ import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { Subject, debounceTime, filter, map } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LayoutService } from '../../state/layout.service';
+import { ThemePicker } from '../theme-picker/theme-picker';
 
 @Component({
   selector: 'app-navbar',
-  imports: [RouterLink],
+  imports: [RouterLink, ThemePicker],
   templateUrl: './navbar.html',
   styleUrl: './navbar.scss',
 })
