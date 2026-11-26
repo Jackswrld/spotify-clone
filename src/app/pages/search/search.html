@@ -9,6 +9,7 @@
         autocomplete="off"
         [value]="box()"
         (input)="onType($any($event.target).value)"
+        (keydown.enter)="remember()"
       />
     </label>
   }
@@ -16,6 +17,39 @@
   @let s = state();
   @switch (s.status) {
     @case ('idle') {
+      @if (recent.items().length) {
+        <section class="recent" aria-label="Recent searches">
+          <div class="recent-head">
+            <h2>Recent searches</h2>
+            <button type="button" class="recent-clear" (click)="recent.clear()">Clear all</button>
+          </div>
+          <ul class="recent-list">
+            @for (item of recent.items().slice(0, 10); track item.id) {
+              <li class="recent-item">
+                <button type="button" class="recent-open" (click)="openRecent(item)">
+                  @if (item.kind === 'search') {
+                    <span class="recent-icon"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
+                  } @else {
+                    <app-cover class="recent-art" [src]="item.image" [seed]="item.id" [round]="item.kind === 'artist'" />
+                  }
+                  <span class="recent-text">
+                    <span class="recent-title">{{ item.title }}</span>
+                    <span class="recent-sub">{{ item.subtitle }}</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  class="recent-remove"
+                  [attr.aria-label]="'Remove ' + item.title + ' from recent searches'"
+                  (click)="recent.remove(item.id)"
+                >
+                  <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+              </li>
+            }
+          </ul>
+        </section>
+      }
       <h1>Browse all</h1>
       <div class="tiles">
         @for (tile of tiles; track tile.name) {
@@ -32,9 +66,15 @@
       <app-error-state message="Couldn't search right now. Check your connection." (retry)="retry()" />
     }
     @case ('ready') {
+      @if (s.corrected) {
+        <p class="did-you-mean">
+          Showing results for <strong>{{ s.shown }}</strong>.
+          <button type="button" (click)="searchExactly(s.q)">Search instead for "{{ s.q }}"</button>
+        </p>
+      }
       @if (isEmpty()) {
         <div class="empty">
-          <h2>No results for "{{ s.q }}"</h2>
+          <h2>No results for "{{ s.shown }}"</h2>
           <p>Check the spelling, or try fewer or different words.</p>
         </div>
       } @else {
@@ -43,7 +83,7 @@
             <section class="top-result" aria-label="Top result">
               <h2>Top result</h2>
               @if (top.kind === 'artist') {
-                <a class="top-card" [routerLink]="artistLink(top.artist)">
+                <a class="top-card" [routerLink]="artistLink(top.artist)" (click)="openedArtist(top.artist)">
                   <app-cover class="top-art" [src]="top.artist.avatar.medium" [seed]="top.artist.id" [round]="true" />
                   <span class="top-name">{{ top.artist.name }}</span>
                   <span class="pill">Artist</span>
@@ -102,6 +142,7 @@
                   [round]="true"
                   [playable]="false"
                   [link]="artistLink(a)"
+                  (click)="openedArtist(a)"
                 />
               }
             </div>
@@ -120,6 +161,7 @@
                   [seed]="al.id"
                   [link]="albumLink(al)"
                   (play)="playAlbum(al)"
+                  (click)="openedAlbum(al)"
                 />
               }
             </div>
@@ -138,6 +180,7 @@
                   [seed]="p.id"
                   [link]="['/playlist', p.id]"
                   (play)="playPlaylist(p)"
+                  (click)="openedPlaylist(p)"
                 />
               }
             </div>

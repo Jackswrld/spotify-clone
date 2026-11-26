@@ -5,6 +5,7 @@ import { Subject, debounceTime, filter, map } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LayoutService } from '../../state/layout.service';
 import { ThemePicker } from '../theme-picker/theme-picker';
+import { RecentSearchesService } from '../../state/recent-searches.service';
 
 @Component({
   selector: 'app-navbar',
@@ -16,6 +17,7 @@ export class Navbar {
   private readonly location = inject(Location);
   private readonly router = inject(Router);
   protected readonly layout = inject(LayoutService);
+  private readonly recent = inject(RecentSearchesService);
 
   private readonly typed = new Subject<string>();
 
@@ -51,6 +53,11 @@ export class Navbar {
 
   protected forward(): void {
     this.location.forward();
+  }
+
+  /** Enter saves the search to Recent searches. */
+  protected saveSearch(): void {
+    this.recent.addQuery(this.box());
   }
 
   protected onSearch(value: string): void {
