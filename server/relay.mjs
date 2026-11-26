@@ -52,6 +52,8 @@ export function createRelay({ fetch, env, now = Date.now, cacheFile, cache }) {
   const matchCache = cache ?? createMatchCache(cacheFile);
   /** When YouTube's daily allowance is used up: { until: reset time (ms) }. */
   const quota = { until: 0 };
+  /** Artist @handle → their channel's uploads, for a day (see artistUploads). */
+  const channels = new Map();
   const deezer = createDeezer({ fetch, now });
   const searchLyrics = createLyricsSearch({ fetch, token: env.GENIUS_ACCESS_TOKEN ?? '', now, deezer });
   /** route|ip → { windowStart, count } */
@@ -108,7 +110,7 @@ export function createRelay({ fetch, env, now = Date.now, cacheFile, cache }) {
         const durationS = Math.max(0, Math.round(Number(url.searchParams.get('duration')) || 0));
         try {
           const result = await matchSong(
-            { fetch, key: env.YOUTUBE_API_KEY ?? '', cache: matchCache, now, quota },
+            { fetch, key: env.YOUTUBE_API_KEY ?? '', cache: matchCache, now, quota, channels },
             { artist, title, durationS },
           );
           return send(res, 200, result, origin, allowed);
