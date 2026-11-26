@@ -7,8 +7,8 @@
         type="search"
         placeholder="What do you want to play?"
         autocomplete="off"
-        [value]="rawQuery()"
-        (input)="search($any($event.target).value.trim())"
+        [value]="box()"
+        (input)="onType($any($event.target).value)"
       />
     </label>
   }

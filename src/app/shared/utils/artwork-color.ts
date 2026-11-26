@@ -66,7 +66,8 @@ export function artworkColor(url: Signal<string | null | undefined>): Signal<str
     let stale = false;
     onCleanup(() => (stale = true)); // a newer URL wins even if its colour resolves first
     service.colorFor(current).then((c) => {
-      if (!stale) color.set(c);
+      // Light themes blend the colour into the page (--tint-mix) so dark text stays readable on it.
+      if (!stale) color.set(c === DEFAULT_TINT ? c : `color-mix(in srgb, ${c} var(--tint-mix), var(--bg))`);
     });
   });
   return color.asReadonly();

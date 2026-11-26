@@ -1,0 +1,43 @@
+// Colour themes (ThemeService sets <html data-theme="…">). Classic is the default in styles.scss.
+// Each theme's text passes WCAG AA (4.5:1). Keep accents in sync with THEMES in theme.service.ts.
+
+@mixin dark($bg, $s1, $s2, $s3, $muted, $accent, $accent-hover, $danger: #f15e6c) {
+  --bg: #{$bg};
+  --surface-1: #{$s1};
+  --surface-2: #{$s2};
+  --surface-3: #{$s3};
+  --text: #fff;
+  --text-muted: #{$muted};
+  --accent: #{$accent};
+  --accent-hover: #{$accent-hover};
+  --danger: #{$danger};
+  --on-accent: #000;
+}
+
+@mixin light($bg, $s1, $s2, $s3, $text, $muted, $accent, $accent-hover, $danger) {
+  --bg: #{$bg};
+  --surface-1: #{$s1};
+  --surface-2: #{$s2};
+  --surface-3: #{$s3};
+  --text: #{$text};
+  --text-muted: #{$muted};
+  --accent: #{$accent};
+  --accent-hover: #{$accent-hover};
+  --danger: #{$danger};
+  --on-accent: #fff;
+  --border: rgba(0, 0, 0, 0.1);
+  --hover: rgba(0, 0, 0, 0.05);
+  --scrim: rgba(0, 0, 0, 0.3);
+  // Cover-colour headers: a soft wash of the colour instead of a dark band, so dark text stays readable.
+  --tint-mix: 28%;
+}
+
+:root[data-theme='midnight'] { @include dark(#0b0f19, #111827, #1e293b, #334155, #a9b4c6, #3b9bff, #60b0ff); }
+:root[data-theme='amethyst'] { @include dark(#120d1a, #1a1325, #2a2038, #3d3050, #b8acc9, #b18cff, #c4a6ff); }
+:root[data-theme='sunset'] { @include dark(#15100c, #1d1611, #2e241c, #44372b, #c2b2a3, #ff8a3d, #ffa25e); }
+:root[data-theme='ocean'] { @include dark(#0a1414, #0f1c1c, #1a2d2d, #2a4242, #a3bdbb, #2dd4bf, #5eead4); }
+:root[data-theme='crimson'] { @include dark(#140b0d, #1c1114, #2e1c21, #452b32, #c4aab0, #ff5c74, #ff7a8e, #ffa94d); }
+
+:root[data-theme='daylight'] { @include light(#ffffff, #f5f6f7, #e9ebee, #d5d9de, #121212, #5b6169, #0f7d3b, #0b6b32, #c4314b); }
+:root[data-theme='blossom'] { @include light(#fff8fb, #fdeef4, #f9dfea, #f0c5d7, #2a0f1c, #6e4a5b, #c2185b, #a3134c, #b42318); }
+:root[data-theme='sky'] { @include light(#f8fbff, #eef4fc, #dfe9f7, #c7d6ec, #0f1b2d, #4d5b70, #1d63d8, #174fae, #b42318); }

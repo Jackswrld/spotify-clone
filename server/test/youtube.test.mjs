@@ -215,3 +215,75 @@ test('the match result carries the decoded video title', async () => {
   assert.equal(result.videoId, 'el1');
   assert.equal(result.title, "Ella Langley - Choosin' Texas (Official Lyric Video)");
 });
+
+// ---- Songs the first search misses (e.g. Pureojuice's anime UK drill uploads) ----
+
+const PJ = (title, durationS) => ({ title, channelTitle: 'Pure O Juice', durationS });
+
+test('a collaboration matches when the channel belongs to any credited artist', () => {
+  const song = { artist: 'A Class & Pureojuice', title: 'KENPACHI ZARAKI (Bleach UK Drill)', durationS: 142 };
+  assert.ok(score(PJ('ZARAKI KENPACHI (BLEACH UK DRILL) @prodbyaclass', 139), song) >= 3);
+});
+
+test('the title still counts when its words come in a different order', () => {
+  const song = { artist: 'Pureojuice', title: 'Kenpachi Zaraki', durationS: 0 };
+  const swapped = score(PJ('ZARAKI KENPACHI (BLEACH UK DRILL)', 139), song);
+  const same = score(PJ('KENPACHI ZARAKI (BLEACH UK DRILL)', 139), song);
+  assert.equal(swapped, same);
+});
+
+test('a one-word title does not match a video that only shares an unrelated word', () => {
+  const song = { artist: 'Someone Else', title: 'Drill', durationS: 0 };
+  assert.ok(score(PJ('Naruto UK Drill', 177), song) < 3);
+});
+
+test('when the first search finds nothing, a plainer search (no category, no brackets) is tried', async () => {
+  const queries = [];
+  const fetch = fakeFetch({
+    'https://www.googleapis.com/youtube/v3/search': (url) => {
+      const u = new URL(url);
+      queries.push({ q: u.searchParams.get('q'), category: u.searchParams.get('videoCategoryId') });
+      if (u.searchParams.get('videoCategoryId')) {
+        return { body: { items: [{ id: { videoId: 'wrong' }, snippet: { title: 'Demon slang', channelTitle: 'Mikelangelo - Topic' } }] } };
+      }
+      return { body: { items: [{ id: { videoId: 'pj1' }, snippet: { title: 'DEMON SLAYER UK DRILL (HINOKAMI KAGURA BOP) (PROD BY CJ)', channelTitle: 'Pure O Juice' } }] } };
+    },
+    'https://www.googleapis.com/youtube/v3/videos': (url) => ({
+      body: {
+        items: new URL(url).searchParams.get('id').split(',').map((id) => ({
+          id, contentDetails: { duration: id === 'pj1' ? 'PT2M47S' : 'PT2M4S' }, status: { embeddable: true },
+        })),
+      },
+    }),
+  });
+  const cache = createMatchCache(null);
+  const song = { artist: 'Pureojuice', title: 'Demon Slayer Uk Drill (Hinokami Kagura Bop)', durationS: 170 };
+  const result = await matchSong({ fetch, key: 'k', cache, now: () => 0 }, song);
+  assert.equal(result.videoId, 'pj1');
+  assert.equal(queries.length, 2);
+  assert.equal(queries[1].category, null);
+  assert.equal(queries[1].q, 'Pureojuice Demon Slayer Uk Drill');
+});
+
+test('a song found by the first search makes only one search', async () => {
+  const fetch = fakeYouTube([OFFICIAL]);
+  await matchSong({ fetch, key: 'k', cache: createMatchCache(null), now: () => 0 }, { artist: 'Rema', title: 'Calm Down', durationS: 239 });
+  assert.equal(fetch.calls.filter((u) => u.includes('/search')).length, 1);
+});
+
+test('a "no match" saved before the plainer search existed is searched again', async () => {
+  const fetch = fakeYouTube([OFFICIAL]);
+  const cache = createMatchCache(null);
+  cache.set(songKey('Rema', 'Calm Down'), { videoId: null, at: 0 }); // old note, no version
+  const result = await matchSong({ fetch, key: 'k', cache, now: () => 1 }, SONG);
+  assert.equal(result.videoId, 'ok1');
+});
+
+test('a "no match" saved with the current rules is still trusted', async () => {
+  const fetch = fakeYouTube([]);
+  const cache = createMatchCache(null);
+  await matchSong({ fetch, key: 'k', cache, now: () => 0 }, SONG);
+  const searches = fetch.calls.length;
+  await matchSong({ fetch, key: 'k', cache, now: () => 1 }, SONG);
+  assert.equal(fetch.calls.length, searches);
+});

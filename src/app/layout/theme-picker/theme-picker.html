@@ -1,0 +1,38 @@
+<button
+  type="button"
+  class="palette"
+  aria-label="Change theme"
+  aria-haspopup="true"
+  [attr.aria-expanded]="open()"
+  (click)="open.set(!open())"
+>
+  <i class="fa-solid fa-palette" aria-hidden="true"></i>
+</button>
+
+@if (open()) {
+  <div class="menu" role="radiogroup" aria-label="Theme">
+    @for (g of groups; track g.label) {
+      <p class="group" aria-hidden="true">{{ g.label }}</p>
+        @for (t of g.items; track t.id) {
+          <button
+            type="button"
+            role="radio"
+            class="option"
+            [attr.aria-checked]="themes.theme().id === t.id"
+            (click)="pick(t.id)"
+          >
+            <span class="swatch" aria-hidden="true" [style.background]="t.swatch[0]">
+              <span class="dot" [style.background]="t.swatch[1]"></span>
+            </span>
+            <span class="label">
+              <span class="name">{{ t.name }}</span>
+              <span class="desc">{{ t.description }}</span>
+            </span>
+            @if (themes.theme().id === t.id) {
+              <i class="fa-solid fa-check check" aria-hidden="true"></i>
+            }
+          </button>
+        }
+    }
+  </div>
+}

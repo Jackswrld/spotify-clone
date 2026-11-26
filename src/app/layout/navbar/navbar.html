@@ -25,12 +25,14 @@
           type="search"
           placeholder="What do you want to play?"
           autocomplete="off"
-          [value]="query()"
+          [value]="box()"
           (input)="onSearch($any($event.target).value)"
         />
       </label>
     </div>
   }
 
-  <div class="right"></div>
+  <div class="right">
+    <app-theme-picker />
+  </div>
 </nav>
