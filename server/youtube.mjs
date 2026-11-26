@@ -8,6 +8,8 @@ const SEARCH_URL = 'https://www.googleapis.com/youtube/v3/search';
 const VIDEOS_URL = 'https://www.googleapis.com/youtube/v3/videos';
 const NO_MATCH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MIN_SCORE = 3;
+/** Bumped when matching gets better, so older "no match" notes are searched again. */
+const MATCH_RULES = 2;
 const DURATION_WINDOW_S = 15;
 const MAX_VIDEO_S = 15 * 60;
 /** Combining accents used by Latin letters (é → e). Other scripts' marks are kept (ド stays ド). */
@@ -63,6 +65,18 @@ export function parseIsoDuration(iso) {
   return Number(m[1] ?? 0) * 3600 + Number(m[2] ?? 0) * 60 + Number(m[3] ?? 0);
 }
 
+/** "A Class & Pureojuice" → the whole credit plus each artist in it (normalised). */
+function creditedArtists(artist) {
+  const parts = String(artist ?? '').split(/\s*(?:&|,|\bfeat\.?|\bft\.?|\bfeaturing)\s+/i);
+  return [...new Set([normalise(artist), ...parts.map(normalise)])].filter(Boolean);
+}
+
+/** The plain second search: no "official audio", no bracketed parts or feat. credits. */
+function plainQuery(artist, title) {
+  const t = withoutFeat(title).replace(/\s*[([][^)\]]*[)\]]/g, ' ').replace(/\s+/g, ' ').trim();
+  return `${artist} ${t}`;
+}
+
 /**
  * Confidence that a video is the song. ≥ 3 counts as a match.
  * @param {{ title: string, channelTitle: string, durationS: number }} c
@@ -71,16 +85,19 @@ export function parseIsoDuration(iso) {
 export function score(c, song) {
   let s = 0;
   const videoTitle = decodeHtml(c.title);
-  const artist = normalise(song.artist);
   const channel = normalise(decodeHtml(c.channelTitle));
   // VEVO channels write the name as one word ("EllaLangleyVEVO"), so also compare without spaces.
   const squash = (x) => x.replace(/ /g, '');
-  if (artist && (channel === `${artist} topic` || channel.includes(artist) || squash(channel).includes(squash(artist)))) {
-    s += 3;
-  }
+  const isChannelOf = (artist) =>
+    artist && (channel === `${artist} topic` || channel.includes(artist) || squash(channel).includes(squash(artist)));
+  // A collaboration ("A Class & Pureojuice") is often uploaded by just one of the artists.
+  if (creditedArtists(song.artist).some(isChannelOf)) s += 3;
 
   const songTitle = normalise(song.title);
-  if (songTitle && normalise(videoTitle).includes(songTitle)) s += 2;
+  const video = normalise(videoTitle);
+  const videoWords = new Set(video.split(' '));
+  // Same words in another order counts too ("Kenpachi Zaraki" vs "ZARAKI KENPACHI").
+  if (songTitle && (video.includes(songTitle) || songTitle.split(' ').every((w) => videoWords.has(w)))) s += 2;
 
   const rawTitle = videoTitle.toLowerCase();
   const songWords = String(song.title ?? '').toLowerCase();
@@ -149,13 +166,48 @@ async function getJson(fetch, url) {
   return res.json();
 }
 
+/** Searches once and returns the best-scoring playable video, or null. */
+async function bestVideo({ fetch, key }, q, musicOnly, song) {
+  const { durationS } = song;
+  const search = await getJson(
+    fetch,
+    `${SEARCH_URL}?part=snippet&type=video&videoEmbeddable=true${musicOnly ? '&videoCategoryId=10' : ''}&maxResults=5` +
+      `&q=${encodeURIComponent(q)}&key=${encodeURIComponent(key)}`,
+  );
+  const items = (search.items ?? []).filter((i) => i?.id?.videoId);
+  if (!items.length) return null;
+  const ids = items.map((i) => i.id.videoId).join(',');
+  const details = await getJson(fetch, `${VIDEOS_URL}?part=contentDetails,status&id=${ids}&key=${encodeURIComponent(key)}`);
+  const byId = new Map((details.items ?? []).map((d) => [d.id, d]));
+  let best = null;
+  for (const item of items) {
+    const d = byId.get(item.id.videoId);
+    if (!d || d.status?.embeddable !== true) continue;
+    const videoS = parseIsoDuration(d.contentDetails?.duration);
+    if (!videoS || videoS >= MAX_VIDEO_S) continue;
+    if (durationS > 0 && Math.abs(videoS - durationS) > DURATION_WINDOW_S) continue;
+    const candidate = {
+      title: decodeHtml(item.snippet?.title),
+      channelTitle: decodeHtml(item.snippet?.channelTitle),
+      durationS: videoS,
+    };
+    const s = score(candidate, song);
+    if (s >= MIN_SCORE && (!best || s > best.confidence)) {
+      best = { videoId: item.id.videoId, title: candidate.title, channel: candidate.channelTitle, confidence: s };
+    }
+  }
+  return best;
+}
+
 /**
  * @returns {Promise<{ videoId: string, title: string, channel: string, confidence: number }
  *   | { videoId: null, reason: 'no-match' | 'quota' | 'no-key' }>}
  */
 export async function matchSong({ fetch, key, cache, now }, { artist, title, durationS = 0 }) {
   const cacheKey = songKey(artist, title);
-  const hit = await cache.get(cacheKey, now());
+  const cached = await cache.get(cacheKey, now());
+  // "No match" notes from before the plainer second search are not trusted: search again.
+  const hit = cached && (cached.videoId || cached.rules === MATCH_RULES) ? cached : undefined;
   if (hit) {
     return hit.videoId
       ? { videoId: hit.videoId, title: hit.title, channel: hit.channel, confidence: hit.confidence }
@@ -164,39 +216,11 @@ export async function matchSong({ fetch, key, cache, now }, { artist, title, dur
   if (!key) return { videoId: null, reason: 'no-key' };
 
   try {
-    const q = `${artist} ${title} official audio`;
-    const search = await getJson(
-      fetch,
-      `${SEARCH_URL}?part=snippet&type=video&videoEmbeddable=true&videoCategoryId=10&maxResults=5` +
-        `&q=${encodeURIComponent(q)}&key=${encodeURIComponent(key)}`,
-    );
-    const items = (search.items ?? []).filter((i) => i?.id?.videoId);
-    let best = null;
-    if (items.length) {
-      const ids = items.map((i) => i.id.videoId).join(',');
-      const details = await getJson(
-        fetch,
-        `${VIDEOS_URL}?part=contentDetails,status&id=${ids}&key=${encodeURIComponent(key)}`,
-      );
-      const byId = new Map((details.items ?? []).map((d) => [d.id, d]));
-      for (const item of items) {
-        const d = byId.get(item.id.videoId);
-        if (!d || d.status?.embeddable !== true) continue;
-        const videoS = parseIsoDuration(d.contentDetails?.duration);
-        if (!videoS || videoS >= MAX_VIDEO_S) continue;
-        if (durationS > 0 && Math.abs(videoS - durationS) > DURATION_WINDOW_S) continue;
-        const candidate = {
-          title: decodeHtml(item.snippet?.title),
-          channelTitle: decodeHtml(item.snippet?.channelTitle),
-          durationS: videoS,
-        };
-        const s = score(candidate, { artist, title, durationS });
-        if (s >= MIN_SCORE && (!best || s > best.confidence)) {
-          best = { videoId: item.id.videoId, title: candidate.title, channel: candidate.channelTitle, confidence: s };
-        }
-      }
-    }
-    await cache.set(cacheKey, best ? { ...best, at: now() } : { videoId: null, at: now() });
+    // Most songs are found as "official audio" in YouTube's Music category. Uploads outside it
+    // (or titled differently) need a plainer search; that costs a second search, only on a miss.
+    let best = await bestVideo({ fetch, key }, `${artist} ${title} official audio`, true, { artist, title, durationS });
+    if (!best) best = await bestVideo({ fetch, key }, plainQuery(artist, title), false, { artist, title, durationS });
+    await cache.set(cacheKey, best ? { ...best, at: now() } : { videoId: null, at: now(), rules: MATCH_RULES });
     return best ?? { videoId: null, reason: 'no-match' };
   } catch (err) {
     if (err instanceof QuotaError) return { videoId: null, reason: 'quota' };
