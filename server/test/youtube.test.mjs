@@ -287,3 +287,49 @@ test('a "no match" saved with the current rules is still trusted', async () => {
   await matchSong({ fetch, key: 'k', cache, now: () => 1 }, SONG);
   assert.equal(fetch.calls.length, searches);
 });
+
+// ---- YouTube's daily allowance ----
+
+const QUOTA_429 = {
+  status: 429,
+  body: { error: { code: 429, status: 'RESOURCE_EXHAUSTED', errors: [{ reason: 'rateLimitExceeded', message: "Quota exceeded for quota metric 'Search Queries'" }] } },
+};
+
+test('YouTube\'s newer "used up" answer (429 RESOURCE_EXHAUSTED) is reported as quota, not a server failure', async () => {
+  const fetch = fakeFetch({ [SEARCH]: () => QUOTA_429 });
+  const result = await matchSong({ fetch, key: 'k', cache: createMatchCache(null), now: () => 0 }, SONG);
+  assert.deepEqual(result, { videoId: null, reason: 'quota' });
+});
+
+test('once the allowance is used up, YouTube is not asked again until it resets (midnight Pacific)', async () => {
+  const fetch = fakeFetch({ [SEARCH]: () => QUOTA_429 });
+  const quota = { until: 0 };
+  const noon = Date.parse('2026-11-26T20:00:00Z'); // 12:00 in California (PST, UTC-8)
+  const deps = (now) => ({ fetch, key: 'k', cache: createMatchCache(null), now: () => now, quota });
+  await matchSong(deps(noon), SONG);
+  const calls = fetch.calls.length;
+  assert.equal(quota.until, Date.parse('2026-11-27T08:00:00Z'));
+  assert.equal((await matchSong(deps(noon + 3600_000), { ...SONG, title: 'Other' })).reason, 'quota');
+  assert.equal(fetch.calls.length, calls); // no new YouTube calls
+  await matchSong(deps(Date.parse('2026-11-27T08:00:01Z')), { ...SONG, title: 'Other' });
+  assert.ok(fetch.calls.length > calls); // after the reset it searches again
+});
+
+test('while the allowance is used up, songs already in memory still play', async () => {
+  const cache = createMatchCache(null);
+  cache.set(songKey('Rema', 'Calm Down'), { videoId: 'ok1', title: 't', channel: 'c', confidence: 5, at: 0 });
+  const fetch = fakeFetch({ [SEARCH]: () => QUOTA_429 });
+  const result = await matchSong({ fetch, key: 'k', cache, now: () => 1, quota: { until: Infinity } }, SONG);
+  assert.equal(result.videoId, 'ok1');
+});
+
+test('the match route answers quota (not an error) when YouTube says the allowance is used up', async () => {
+  const relay = await startRelay({ fetch: fakeFetch({ [SEARCH]: () => QUOTA_429 }), env: { YOUTUBE_API_KEY: 'k' }, cacheFile: tmpFile() });
+  try {
+    const res = await relay.get('/api/youtube/match?artist=Rema&title=Calm%20Down', { Origin: 'http://localhost:4300' });
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).reason, 'quota');
+  } finally {
+    await relay.close();
+  }
+});

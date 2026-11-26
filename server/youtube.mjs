@@ -156,11 +156,30 @@ export const songKey = (artist, title) => `${exactKey(artist)}|${exactKey(title)
 
 class QuotaError extends Error {}
 
+/** YouTube's allowance resets at midnight Pacific time. Returns that moment (ms) after `t`. */
+export function nextPacificMidnight(t) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    hourCycle: 'h23',
+  });
+  const parts = (x) => Object.fromEntries(fmt.formatToParts(x).map((p) => [p.type, Number(p.value)]));
+  const today = parts(t);
+  const guess = Date.UTC(today.year, today.month - 1, today.day + 1, 8); // midnight in winter (UTC-8)
+  return guess - parts(guess).hour * 3600_000; // in summer (UTC-7) that is 1am: step back an hour
+}
+
 async function getJson(fetch, url) {
   const res = await fetch(url);
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    if (res.status === 403 && text.includes('quotaExceeded')) throw new QuotaError('quota');
+    // The daily allowance: older answers are 403 "quotaExceeded", newer ones 429 RESOURCE_EXHAUSTED.
+    if (res.status === 429 || (res.status === 403 && /quotaExceeded|dailyLimitExceeded/.test(text))) {
+      throw new QuotaError('quota');
+    }
     throw new Error(`youtube ${res.status}`);
   }
   return res.json();
@@ -203,7 +222,7 @@ async function bestVideo({ fetch, key }, q, musicOnly, song) {
  * @returns {Promise<{ videoId: string, title: string, channel: string, confidence: number }
  *   | { videoId: null, reason: 'no-match' | 'quota' | 'no-key' }>}
  */
-export async function matchSong({ fetch, key, cache, now }, { artist, title, durationS = 0 }) {
+export async function matchSong({ fetch, key, cache, now, quota }, { artist, title, durationS = 0 }) {
   const cacheKey = songKey(artist, title);
   const cached = await cache.get(cacheKey, now());
   // "No match" notes from before the plainer second search are not trusted: search again.
@@ -214,6 +233,8 @@ export async function matchSong({ fetch, key, cache, now }, { artist, title, dur
       : { videoId: null, reason: 'no-match' };
   }
   if (!key) return { videoId: null, reason: 'no-key' };
+  // Allowance used up: don't ask YouTube again (each refusal is wasted) until it resets.
+  if (quota && now() < quota.until) return { videoId: null, reason: 'quota' };
 
   try {
     // Most songs are found as "official audio" in YouTube's Music category. Uploads outside it
@@ -223,7 +244,10 @@ export async function matchSong({ fetch, key, cache, now }, { artist, title, dur
     await cache.set(cacheKey, best ? { ...best, at: now() } : { videoId: null, at: now(), rules: MATCH_RULES });
     return best ?? { videoId: null, reason: 'no-match' };
   } catch (err) {
-    if (err instanceof QuotaError) return { videoId: null, reason: 'quota' };
+    if (err instanceof QuotaError) {
+      if (quota) quota.until = nextPacificMidnight(now());
+      return { videoId: null, reason: 'quota' };
+    }
     throw err;
   }
 }

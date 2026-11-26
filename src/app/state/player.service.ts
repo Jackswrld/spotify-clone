@@ -361,10 +361,16 @@ export class PlayerService {
         break;
       case 'error':
         if (event.kind === 'quota') {
-          this.announce("YouTube's daily search limit is used up; try again tomorrow.");
+          this.announce("YouTube's daily search limit is used up. Songs you've played before still work; new ones will tomorrow.");
           this.stop();
         } else if (event.kind === 'offline') {
-          this.announce("Can't reach the music server.");
+          this.announce("Can't reach the music server. Check your internet connection.");
+          this.stop();
+        } else if (event.kind === 'busy') {
+          this.announce('Too many songs requested at once. Wait a minute, then press play.');
+          this.stop();
+        } else if (event.kind === 'server') {
+          this.announce('The music server had a problem finding this song. Try again in a moment.');
           this.stop();
         } else if (event.kind === 'not-set-up') {
           this.announce("YouTube playback isn't set up.");

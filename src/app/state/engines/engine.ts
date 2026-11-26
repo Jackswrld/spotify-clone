@@ -9,7 +9,7 @@ export type EngineEvent =
   | { type: 'canplay' }
   | { type: 'time'; time: number; duration: number }
   | { type: 'ended' }
-  | { type: 'error'; kind: 'stream' | 'no-match' | 'quota' | 'offline' | 'not-set-up' }
+  | { type: 'error'; kind: 'stream' | 'no-match' | 'quota' | 'offline' | 'busy' | 'server' | 'not-set-up' }
   /** The browser refused to start playback without a user gesture: a pause, never an error. */
   | { type: 'blocked' };
 
