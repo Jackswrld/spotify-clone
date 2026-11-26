@@ -2,6 +2,7 @@
 // exists. Deezer sends no CORS header for browsers, so the app reaches it through here.
 
 import { exactKey } from './youtube.mjs';
+import { spellingFix } from './spelling.mjs';
 
 const BASE = 'https://api.deezer.com';
 const TTL_MS = 24 * 60 * 60 * 1000;
@@ -37,6 +38,15 @@ export function createDeezer({ fetch, now }) {
           .filter((a) => exactKey(a.name) === key)
           .sort((a, b) => (b.nb_fan ?? 0) - (a.nb_fan ?? 0))[0];
         return best ? { image: best.picture_xl ?? null, fans: best.nb_fan ?? 0 } : { image: null, fans: 0 };
+      });
+    },
+
+    /** A corrected spelling of the search, from Deezer's top hit, or null. */
+    suggest(q) {
+      return cached(`suggest|${exactKey(q)}`, async () => {
+        const body = await getJson(`${BASE}/search?q=${encodeURIComponent(q)}&limit=1`);
+        const top = body.data?.[0];
+        return spellingFix(q, top ? { artist: top.artist?.name ?? '', title: top.title ?? '' } : null);
       });
     },
 
