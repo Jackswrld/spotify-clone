@@ -19,6 +19,8 @@ import {
 import { ArtistPhotoApi } from '../../core/api/artist-photo-api';
 import { LyricHit, LyricsSearchApi, LyricsSearchResult } from '../../core/api/lyrics-search-api';
 import { ToastService } from '../../state/toast.service';
+import { SpellingApi } from '../../core/api/spelling-api';
+import { RecentItem, RecentSearchesService } from '../../state/recent-searches.service';
 import { AudiusApi } from '../../core/api/audius-api';
 import { Album, Artist, Playlist, Track } from '../../core/models';
 import { CatalogApi } from '../../core/api/catalog-api';
@@ -47,6 +49,8 @@ const LYRIC_WORDS = 4;
 type LyricsState = null | 'loading' | LyricsSearchResult;
 
 const wordCount = (q: string) => q.split(/\s+/).filter(Boolean).length;
+/** Longer searches are phrases or lyric lines: never spelling-corrected. */
+const MAX_FIX_WORDS = 5;
 
 type SearchState =
   | { status: 'idle' }
@@ -54,7 +58,11 @@ type SearchState =
   | { status: 'error'; q: string }
   | {
       status: 'ready';
+      /** What was typed. */
       q: string;
+      /** What was searched: the typed words, or their corrected spelling. */
+      shown: string;
+      corrected: boolean;
       catalogSongs: Track[];
       audiusSongs: Track[];
       artists: Artist[];
@@ -83,6 +91,10 @@ export class SearchPage {
   private readonly router = inject(Router);
   protected readonly player = inject(PlayerService);
   protected readonly layout = inject(LayoutService);
+  private readonly spelling = inject(SpellingApi);
+  protected readonly recent = inject(RecentSearchesService);
+  /** A search the user asked to run exactly as typed ("Search instead for ..."). */
+  private readonly exactFor = signal<string | null>(null);
 
   protected readonly tiles = [...HOME_GENRES.filter((g) => g !== 'All'), ...MOODS].map((name) => ({
     name,
@@ -119,19 +131,29 @@ export class SearchPage {
     { initialValue: { status: 'idle' } as SearchState },
   );
 
+  /** A misspelled search ("micheal jackson") runs as its corrected spelling, unless asked not to. */
+  private search$(q: string) {
+    const fix$ = q === this.exactFor() || wordCount(q) > MAX_FIX_WORDS ? of(null) : this.spelling.suggest(q);
+    return fix$.pipe(
+      switchMap((fix) => this.results$(q, fix)),
+      startWith<SearchState>({ status: 'loading', q }),
+    );
+  }
+
   /**
    * Apple for mainstream results, Audius only for the Independent tab. One failing group still
    * shows the others; only when every request fails is it an error rather than "no results".
    * Never calls YouTube.
    */
-  private search$(q: string) {
+  private results$(q: string, fix: string | null): Observable<SearchState> {
+    const shown = fix ?? q;
     const orNull = <T>(source: Observable<T[]>) => source.pipe(catchError(() => of(null)));
     return forkJoin({
-      catalogSongs: orNull(this.catalog.searchSongs(q, 20)),
-      catalogArtists: orNull(this.catalog.searchArtists(q, 10)),
-      albums: orNull(this.catalog.searchAlbums(q, 10)),
-      audiusSongs: orNull(this.api.searchTracks(q, 20)),
-      playlists: orNull(this.api.searchPlaylists(q, 10)),
+      catalogSongs: orNull(this.catalog.searchSongs(shown, 20)),
+      catalogArtists: orNull(this.catalog.searchArtists(shown, 10)),
+      albums: orNull(this.catalog.searchAlbums(shown, 10)),
+      audiusSongs: orNull(this.api.searchTracks(shown, 20)),
+      playlists: orNull(this.api.searchPlaylists(shown, 10)),
     }).pipe(
       switchMap((r) =>
         this.realArtists(r.catalogArtists ?? []).pipe(map((artists) => ({ ...r, artists, failed: Object.values(r).every((v) => v === null) }))),
@@ -142,6 +164,8 @@ export class SearchPage {
           : {
               status: 'ready',
               q,
+              shown,
+              corrected: fix !== null,
               catalogSongs: r.catalogSongs ?? [],
               audiusSongs: r.audiusSongs ?? [],
               artists: r.artists,
@@ -149,8 +173,12 @@ export class SearchPage {
               playlists: r.playlists ?? [],
             },
       ),
-      startWith<SearchState>({ status: 'loading', q }),
     );
+  }
+
+  protected searchExactly(q: string): void {
+    this.exactFor.set(q);
+    this.retry$.next();
   }
 
   /**
@@ -225,7 +253,12 @@ export class SearchPage {
 
   protected playLyric(hit: LyricHit): void {
     this.catalog.findSong(hit.artist, hit.title).subscribe({
-      next: (song) => (song ? this.player.playTracks([song], 0) : this.toast.show("Couldn't find this song to play")),
+      next: (song) => {
+        if (!song) return this.toast.show("Couldn't find this song to play");
+        this.remember();
+        this.recent.addSong(song);
+        this.player.playTracks([song], 0);
+      },
       error: () => this.toast.show("Couldn't find this song to play"),
     });
   }
@@ -254,7 +287,7 @@ export class SearchPage {
   protected readonly topResult = computed<TopResult | null>(() => {
     const s = this.state();
     if (s.status !== 'ready') return null;
-    const q = exactKey(s.q);
+    const q = exactKey(s.shown);
     const artist = s.artists.find((a) => exactKey(a.name) === q);
     const songs = this.allSongs();
     const titleMatch = songs.findIndex((t) => exactKey(t.title) === q);
@@ -291,21 +324,63 @@ export class SearchPage {
   }
 
   protected playSong(index: number): void {
-    this.player.playTracks(this.songs(), index);
+    const songs = this.songs();
+    this.remember();
+    this.recent.addSong(songs[index]);
+    this.player.playTracks(songs, index);
   }
 
   /** The top result plays from the merged list, regardless of the songs tab. */
   protected playTop(index: number): void {
-    this.player.playTracks(this.allSongs(), index);
+    const songs = this.allSongs();
+    this.remember();
+    this.recent.addSong(songs[index]);
+    this.player.playTracks(songs, index);
+  }
+
+  /** Saves the current search (as shown, so a corrected spelling is what comes back). */
+  protected remember(): void {
+    const s = this.state();
+    if (s.status === 'ready') this.recent.addQuery(s.shown);
+  }
+
+  protected openedArtist(artist: Artist): void {
+    this.remember();
+    this.recent.addArtist(artist);
+  }
+
+  protected openedAlbum(album: Album): void {
+    this.remember();
+    this.recent.addAlbum(album);
+  }
+
+  protected openedPlaylist(playlist: Playlist): void {
+    this.remember();
+    this.recent.addPlaylist(playlist);
+  }
+
+  /** A saved entry: a search runs again, a song plays, anything else opens. It moves to the top. */
+  protected openRecent(item: RecentItem): void {
+    if (item.kind === 'search' && item.q) {
+      this.recent.addQuery(item.q);
+      this.search(item.q);
+    } else if (item.kind === 'song' && item.track) {
+      this.recent.addSong(item.track);
+      this.player.playTracks([item.track], 0);
+    } else if (item.link) {
+      this.router.navigate(item.link);
+    }
   }
 
   protected playAlbum(album: Album): void {
+    this.openedAlbum(album);
     this.catalog.album(album.appleId).subscribe((r) => {
       if (r.tracks.length) this.player.playTracks(r.tracks, 0);
     });
   }
 
   protected playPlaylist(playlist: Playlist): void {
+    this.openedPlaylist(playlist);
     this.api.playlistTracks(playlist.id).subscribe((tracks) => {
       if (tracks.length) this.player.playTracks(tracks, 0);
     });

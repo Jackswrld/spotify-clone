@@ -287,3 +287,180 @@ test('a "no match" saved with the current rules is still trusted', async () => {
   await matchSong({ fetch, key: 'k', cache, now: () => 1 }, SONG);
   assert.equal(fetch.calls.length, searches);
 });
+
+// ---- YouTube's daily allowance ----
+
+const QUOTA_429 = {
+  status: 429,
+  body: { error: { code: 429, status: 'RESOURCE_EXHAUSTED', errors: [{ reason: 'rateLimitExceeded', message: "Quota exceeded for quota metric 'Search Queries'" }] } },
+};
+
+test('YouTube\'s newer "used up" answer (429 RESOURCE_EXHAUSTED) is reported as quota, not a server failure', async () => {
+  const fetch = fakeFetch({ [SEARCH]: () => QUOTA_429 });
+  const result = await matchSong({ fetch, key: 'k', cache: createMatchCache(null), now: () => 0 }, SONG);
+  assert.deepEqual(result, { videoId: null, reason: 'quota' });
+});
+
+test('once the allowance is used up, YouTube is not asked again until it resets (midnight Pacific)', async () => {
+  const fetch = fakeFetch({ [SEARCH]: () => QUOTA_429 });
+  const quota = { until: 0 };
+  const noon = Date.parse('2026-11-26T20:00:00Z'); // 12:00 in California (PST, UTC-8)
+  const deps = (now) => ({ fetch, key: 'k', cache: createMatchCache(null), now: () => now, quota });
+  await matchSong(deps(noon), SONG);
+  const calls = fetch.calls.length;
+  assert.equal(quota.until, Date.parse('2026-11-27T08:00:00Z'));
+  assert.equal((await matchSong(deps(noon + 3600_000), { ...SONG, title: 'Other' })).reason, 'quota');
+  assert.equal(fetch.calls.length, calls); // no new YouTube calls
+  await matchSong(deps(Date.parse('2026-11-27T08:00:01Z')), { ...SONG, title: 'Other' });
+  assert.ok(fetch.calls.length > calls); // after the reset it searches again
+});
+
+test('while the allowance is used up, songs already in memory still play', async () => {
+  const cache = createMatchCache(null);
+  cache.set(songKey('Rema', 'Calm Down'), { videoId: 'ok1', title: 't', channel: 'c', confidence: 5, at: 0 });
+  const fetch = fakeFetch({ [SEARCH]: () => QUOTA_429 });
+  const result = await matchSong({ fetch, key: 'k', cache, now: () => 1, quota: { until: Infinity } }, SONG);
+  assert.equal(result.videoId, 'ok1');
+});
+
+test('the match route answers quota (not an error) when YouTube says the allowance is used up', async () => {
+  const relay = await startRelay({ fetch: fakeFetch({ [SEARCH]: () => QUOTA_429 }), env: { YOUTUBE_API_KEY: 'k' }, cacheFile: tmpFile() });
+  try {
+    const res = await relay.get('/api/youtube/match?artist=Rema&title=Calm%20Down', { Origin: 'http://localhost:4300' });
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).reason, 'quota');
+  } finally {
+    await relay.close();
+  }
+});
+
+// ---- Artist channel first: no search needed (searches are limited to 100 a day) ----
+
+const CHANNELS = 'https://www.googleapis.com/youtube/v3/channels';
+const PLAYLIST = 'https://www.googleapis.com/youtube/v3/playlistItems';
+
+/** Fake YouTube with an artist channel (by handle) and its uploads, plus a search that must not be needed. */
+function channelYouTube({ subs = 6_870_000, uploads, search = [], durations = {} }) {
+  return fakeFetch({
+    [CHANNELS]: (url) =>
+      new URL(url).searchParams.get('forHandle') === '@tatemcrae'
+        ? { body: { items: [{ id: 'UCx', snippet: { title: 'Tate McRae' }, statistics: { subscriberCount: String(subs) }, contentDetails: { relatedPlaylists: { uploads: 'UUx' } } }] } }
+        : { body: { items: [] } },
+    [PLAYLIST]: () => ({ body: { items: uploads.map(([id, title]) => ({ snippet: { title, resourceId: { videoId: id } } })) } }),
+    [VIDEOS]: (url) => ({
+      body: {
+        items: new URL(url).searchParams.get('id').split(',').map((id) => ({
+          id, contentDetails: { duration: durations[id] ?? 'PT3M' }, status: { embeddable: true },
+        })),
+      },
+    }),
+    [SEARCH]: () => ({ body: { items: search } }),
+  });
+}
+
+const HOUSEWIFE = { artist: 'Tate McRae', title: 'Housewife', durationS: 180 };
+const TATE_UPLOADS = [
+  ['live1', 'Tate McRae - Housewife (Live from The Victoria&#39;s Secret Fashion Show 2026)'],
+  ['off1', 'Tate McRae - Housewife (Official Video)'],
+  ['sc1', 'Tate McRae - Sports car (Official Video)'],
+];
+
+test("a song on the artist's own channel is found without any search", async () => {
+  const fetch = channelYouTube({ uploads: TATE_UPLOADS });
+  const result = await matchSong({ fetch, key: 'k', cache: createMatchCache(null), now: () => 0, channels: new Map() }, HOUSEWIFE);
+  assert.equal(result.videoId, 'off1'); // the official video, not the live performance
+  assert.equal(fetch.calls.filter((u) => u.startsWith(SEARCH)).length, 0);
+});
+
+test("the artist's uploads are remembered: their next song costs no channel lookup", async () => {
+  const fetch = channelYouTube({ uploads: TATE_UPLOADS });
+  const deps = { fetch, key: 'k', cache: createMatchCache(null), now: () => 0, channels: new Map() };
+  await matchSong(deps, HOUSEWIFE);
+  const before = fetch.calls.filter((u) => u.startsWith(CHANNELS) || u.startsWith(PLAYLIST)).length;
+  assert.equal((await matchSong(deps, { artist: 'Tate McRae', title: 'Sports car', durationS: 180 })).videoId, 'sc1');
+  assert.equal(fetch.calls.filter((u) => u.startsWith(CHANNELS) || u.startsWith(PLAYLIST)).length, before);
+});
+
+test('a small look-alike channel (under 10,000 subscribers) is not trusted', async () => {
+  const fetch = channelYouTube({
+    subs: 491,
+    uploads: TATE_UPLOADS,
+    search: [{ id: { videoId: 'real1' }, snippet: { title: 'Housewife', channelTitle: 'Tate McRae - Topic' } }],
+  });
+  const result = await matchSong({ fetch, key: 'k', cache: createMatchCache(null), now: () => 0, channels: new Map() }, HOUSEWIFE);
+  assert.equal(result.videoId, 'real1');
+});
+
+test("songs still play from the artist's channel after the day's searches are used up", async () => {
+  const fetch = channelYouTube({ uploads: TATE_UPLOADS });
+  const deps = { fetch, key: 'k', cache: createMatchCache(null), now: () => 0, channels: new Map(), quota: { until: Infinity } };
+  assert.equal((await matchSong(deps, HOUSEWIFE)).videoId, 'off1');
+});
+
+test('when the channel route fails, the normal search still runs', async () => {
+  const fetch = fakeFetch({
+    [CHANNELS]: () => ({ status: 500, body: {} }),
+    [SEARCH]: () => ({ body: { items: [{ id: { videoId: 'ok1' }, snippet: { title: 'Calm Down', channelTitle: 'Rema - Topic' } }] } }),
+    [VIDEOS]: () => ({ body: { items: [{ id: 'ok1', contentDetails: { duration: 'PT4M' }, status: { embeddable: true } }] } }),
+  });
+  const result = await matchSong({ fetch, key: 'k', cache: createMatchCache(null), now: () => 0, channels: new Map() }, SONG);
+  assert.equal(result.videoId, 'ok1');
+});
+
+test('an acoustic, instrumental or trailer upload loses to the real song', () => {
+  const song = { artist: 'Olivia Rodrigo', title: 'stupid song', durationS: 0 };
+  const real = score({ title: 'Olivia Rodrigo - stupid song (Official Audio)', channelTitle: 'Olivia Rodrigo', durationS: 200 }, song);
+  for (const variant of ['stupid song (acoustic)', 'stupid song (Instrumental)', 'stupid song (Official Video Trailer)', 'stupid song (Piano Demo)']) {
+    assert.ok(score({ title: `Olivia Rodrigo - ${variant}`, channelTitle: 'Olivia Rodrigo', durationS: 200 }, song) < real, variant);
+  }
+});
+
+test('words in any order only count for short titles (a long title must appear as written)', () => {
+  const song = { artist: 'Pureojuice', title: 'Demon Slayer Uk Drill (Hinokami Kagura Bop)', durationS: 0 };
+  const other = score({ title: 'BLAKAZA 2 | AKAZA UK DRILL | DEMON SLAYER RAP', channelTitle: 'Pure O Juice', durationS: 170 }, song);
+  assert.ok(other < 5, `scored ${other}`); // the artist alone, not the title
+});
+
+/** Fake YouTube where channels are looked up by handle from a table. */
+function handlesYouTube(table, uploadsByChannel) {
+  return fakeFetch({
+    [CHANNELS]: (url) => {
+      const c = table[new URL(url).searchParams.get('forHandle')];
+      return {
+        body: {
+          items: c ? [{ id: c.id, snippet: { title: c.title }, statistics: { subscriberCount: String(c.subs) }, contentDetails: { relatedPlaylists: { uploads: 'UU' + c.id } } }] : [],
+        },
+      };
+    },
+    [PLAYLIST]: (url) => ({
+      body: { items: (uploadsByChannel[new URL(url).searchParams.get('playlistId').slice(2)] ?? []).map(([id, title]) => ({ snippet: { title, resourceId: { videoId: id } } })) },
+    }),
+    [VIDEOS]: (url) => ({
+      body: { items: new URL(url).searchParams.get('id').split(',').map((id) => ({ id, contentDetails: { duration: 'PT3M' }, status: { embeddable: true } })) },
+    }),
+    [SEARCH]: () => ({ body: { items: [] } }),
+  });
+}
+
+test('a big channel with a different name (a fan channel) is not used; the artist\'s VEVO channel is', async () => {
+  const fetch = handlesYouTube(
+    {
+      '@future': { id: 'fan', title: "Future AMV's", subs: 142_000 },
+      '@futurevevo': { id: 'vevo', title: 'FutureVEVO', subs: 4_320_000 },
+    },
+    { fan: [['fake1', 'WAIT FOR U (AMV)']], vevo: [['real1', 'Future - WAIT FOR U (Official Music Video) ft. Drake, Tems']] },
+  );
+  const song = { artist: 'Future', title: 'WAIT FOR U (feat. Drake & Tems)', durationS: 180 };
+  const result = await matchSong({ fetch, key: 'k', cache: createMatchCache(null), now: () => 0, channels: new Map() }, song);
+  assert.equal(result.videoId, 'real1');
+});
+
+test("the artist's official channel is found when the plain @name belongs to someone else", async () => {
+  const fetch = handlesYouTube(
+    { '@drake': { id: 'x', title: 'drake', subs: 491 }, '@drakeofficial': { id: 'd', title: 'Drake', subs: 33_300_000 } },
+    { d: [['jan1', 'Drake - Janice STFU (Official Audio)']] },
+  );
+  const song = { artist: 'Drake', title: 'Janice STFU', durationS: 180 };
+  const result = await matchSong({ fetch, key: 'k', cache: createMatchCache(null), now: () => 0, channels: new Map() }, song);
+  assert.equal(result.videoId, 'jan1');
+});

@@ -27,6 +27,7 @@
           autocomplete="off"
           [value]="box()"
           (input)="onSearch($any($event.target).value)"
+          (keydown.enter)="saveSearch()"
         />
       </label>
     </div>

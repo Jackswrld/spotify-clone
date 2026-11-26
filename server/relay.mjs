@@ -9,7 +9,7 @@ import { createMatchCache, exactKey, matchSong, songKey } from './youtube.mjs';
 const DEV_ORIGINS = ['http://localhost:4300', 'http://127.0.0.1:4300'];
 const MATCH_LIMIT_PER_MINUTE = 30;
 /** One search looks up to 10 artist photos; Deezer allows far more. */
-const LIMITS = { match: MATCH_LIMIT_PER_MINUTE, photo: 120, lyrics: MATCH_LIMIT_PER_MINUTE };
+const LIMITS = { match: MATCH_LIMIT_PER_MINUTE, photo: 120, lyrics: MATCH_LIMIT_PER_MINUTE, suggest: 60 };
 
 /**
  * Websites allowed to use the relay: the local dev app, the Vercel site (Vercel sets these
@@ -50,6 +50,10 @@ export function createRelay({ fetch, env, now = Date.now, cacheFile, cache }) {
   const allowed = allowedOrigins(env);
   const fetchChart = createChartFetcher({ fetch, now });
   const matchCache = cache ?? createMatchCache(cacheFile);
+  /** When YouTube's daily allowance is used up: { until: reset time (ms) }. */
+  const quota = { until: 0 };
+  /** Artist @handle → their channel's uploads, for a day (see artistUploads). */
+  const channels = new Map();
   const deezer = createDeezer({ fetch, now });
   const searchLyrics = createLyricsSearch({ fetch, token: env.GENIUS_ACCESS_TOKEN ?? '', now, deezer });
   /** route|ip → { windowStart, count } */
@@ -106,7 +110,7 @@ export function createRelay({ fetch, env, now = Date.now, cacheFile, cache }) {
         const durationS = Math.max(0, Math.round(Number(url.searchParams.get('duration')) || 0));
         try {
           const result = await matchSong(
-            { fetch, key: env.YOUTUBE_API_KEY ?? '', cache: matchCache, now },
+            { fetch, key: env.YOUTUBE_API_KEY ?? '', cache: matchCache, now, quota, channels },
             { artist, title, durationS },
           );
           return send(res, 200, result, origin, allowed);
@@ -124,6 +128,15 @@ export function createRelay({ fetch, env, now = Date.now, cacheFile, cache }) {
         } catch {
           return send(res, 502, { error: 'upstream' }, origin, allowed);
         }
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/search/suggest') {
+        if (rateLimited(clientIp(req), 'suggest')) return send(res, 429, { error: 'rate_limited' }, origin, allowed);
+        const q = (url.searchParams.get('q') ?? '').trim();
+        if (!exactKey(q) || q.length > 200) return send(res, 400, { error: 'bad_request' }, origin, allowed);
+        // A suggestion is a nice-to-have: Deezer trouble means "no suggestion", never an error.
+        const suggestion = await deezer.suggest(q).catch(() => null);
+        return send(res, 200, { suggestion }, origin, allowed);
       }
 
       if (req.method === 'GET' && url.pathname === '/api/artist-photo') {

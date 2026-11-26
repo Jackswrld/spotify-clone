@@ -13,6 +13,8 @@ import { Album } from '../../core/models';
 import { ArtistPhoto, ArtistPhotoApi } from '../../core/api/artist-photo-api';
 import { LyricHit, LyricsSearchApi, LyricsSearchResult } from '../../core/api/lyrics-search-api';
 import { ToastService } from '../../state/toast.service';
+import { SpellingApi } from '../../core/api/spelling-api';
+import { RecentSearchesService } from '../../state/recent-searches.service';
 
 function artist(id: string, name: string): Artist {
   return {
@@ -60,6 +62,7 @@ function setup() {
   /** Deezer answers, by artist name. */
   const photos: Record<string, ArtistPhoto> = {};
   const player = { playTracks: jasmine.createSpy('playTracks'), current: signal(null), isPlaying: signal(false) };
+  const spelling = { suggest: jasmine.createSpy('suggest').and.returnValue(of(null)) as jasmine.Spy<(q: string) => Observable<string | null>> };
   TestBed.configureTestingModule({
     imports: [SearchPage],
     providers: [
@@ -69,6 +72,7 @@ function setup() {
       { provide: PlayerService, useValue: player },
       { provide: CatalogApi, useValue: catalog },
       { provide: LyricsSearchApi, useValue: lyrics },
+      { provide: SpellingApi, useValue: spelling },
       { provide: ArtistPhotoApi, useValue: { photoFor: (name: string) => of<ArtistPhoto>(photos[name] ?? { image: null, fans: 0 }) } },
     ],
   });
@@ -94,6 +98,7 @@ function setup() {
     catalog,
     lyrics,
     photos,
+    spelling,
     respond,
     setQ: (q: string) => {
       params.next(convertToParamMap(q ? { q } : {}));
@@ -500,4 +505,72 @@ describe('SearchPage phone search box', () => {
     t.setQ('Adele');
     expect(box(t.el).value).toBe('Adele');
   });
+});
+
+describe('SearchPage recent searches and spelling', () => {
+  let media: FakeMedia;
+  beforeEach(() => {
+    media = installFakeMatchMedia(1280);
+    localStorage.clear();
+  });
+  afterEach(() => {
+    media.restore();
+    localStorage.clear();
+  });
+
+  it('shows saved searches on the empty search page; a saved song plays again', () => {
+    const t = setup();
+    const recent = TestBed.inject(RecentSearchesService);
+    recent.addQuery('burna boy');
+    recent.addSong(apple('9', 'Calm Down', 'Rema'));
+    t.fixture.detectChanges();
+    expect(t.el.textContent).toContain('Recent searches');
+    const rows = t.el.querySelectorAll<HTMLElement>('.recent-item');
+    expect(rows[0].textContent).toContain('Calm Down');
+    expect(rows[1].textContent).toContain('burna boy');
+    rows[0].querySelector<HTMLButtonElement>('.recent-open')!.click();
+    expect(t.player.playTracks).toHaveBeenCalledWith([jasmine.objectContaining({ id: 'apple:9' })], 0);
+  });
+
+  it('a saved search runs again; × removes one; Clear all empties the list', () => {
+    const t = setup();
+    const recent = TestBed.inject(RecentSearchesService);
+    recent.addQuery('burna boy');
+    recent.addQuery('wizkid');
+    t.fixture.detectChanges();
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigate');
+    t.el.querySelectorAll<HTMLButtonElement>('.recent-item .recent-open')[1].click();
+    expect(router.navigate).toHaveBeenCalledWith(['/search'], jasmine.objectContaining({ queryParams: { q: 'burna boy' } }));
+    t.el.querySelector<HTMLButtonElement>('.recent-item .recent-remove')!.click();
+    t.fixture.detectChanges();
+    expect(recent.items().map((i) => i.title)).toEqual(['burna boy']);
+    t.el.querySelector<HTMLButtonElement>('.recent-clear')!.click();
+    t.fixture.detectChanges();
+    expect(t.el.textContent).not.toContain('Recent searches');
+  });
+
+  it('playing a song from the results saves it and the search that found it', fakeAsync(() => {
+    const t = setup();
+    t.setQ('rema');
+    tick(300);
+    t.respond('rema', { songs: [apple('1', 'Calm Down', 'Rema')] });
+    (t.fixture.debugElement.query((d) => d.name === 'app-track-row').componentInstance as { play: { emit(): void } }).play.emit();
+    const items = TestBed.inject(RecentSearchesService).items();
+    expect(items.map((i) => i.kind)).toEqual(['song', 'search']);
+    expect(items[1].title).toBe('rema');
+  }));
+
+  it('a misspelled search shows results for the corrected spelling, with a way back', fakeAsync(() => {
+    const t = setup();
+    t.spelling.suggest.and.callFake((q: string) => of(q === 'micheal jackson' ? 'Michael Jackson' : null));
+    t.setQ('micheal jackson');
+    tick(300);
+    expect(t.catalog.searchSongs).toHaveBeenCalledWith('Michael Jackson', jasmine.any(Number));
+    t.respond('Michael Jackson', { songs: [apple('1', 'Billie Jean', 'Michael Jackson')] });
+    expect(t.el.querySelector('.did-you-mean')?.textContent).toContain('Showing results for Michael Jackson');
+    t.el.querySelector<HTMLButtonElement>('.did-you-mean button')!.click();
+    t.fixture.detectChanges();
+    expect(t.catalog.searchSongs).toHaveBeenCalledWith('micheal jackson', jasmine.any(Number));
+  }));
 });

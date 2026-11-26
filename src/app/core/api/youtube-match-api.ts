@@ -1,11 +1,11 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of, tap } from 'rxjs';
 import { Track } from '../models';
 import { lyricsTitle } from '../title';
 
 export type MatchFound = { videoId: string; title: string; channel: string };
-export type MatchMissing = { videoId: null; reason: 'no-match' | 'quota' | 'no-key' | 'offline' };
+export type MatchMissing = { videoId: null; reason: 'no-match' | 'quota' | 'no-key' | 'offline' | 'busy' | 'server' };
 export type MatchResult = MatchFound | MatchMissing;
 
 /** Asks the relay which YouTube video is the official version of a catalog song. */
@@ -33,7 +33,12 @@ export class YouTubeMatchApi {
             ? { videoId: r.videoId, title: r.title ?? '', channel: r.channel ?? '' }
             : { videoId: null, reason: r.reason ?? 'no-match' },
         ),
-        catchError(() => of<MatchResult>({ videoId: null, reason: 'offline' })),
+        catchError((err: unknown) => {
+          const status = err instanceof HttpErrorResponse ? err.status : 0;
+          // 0 = no answer at all (offline); 429 = the relay's per-minute limit; anything else = a server problem.
+          const reason = status === 0 ? 'offline' : status === 429 ? 'busy' : 'server';
+          return of<MatchResult>({ videoId: null, reason });
+        }),
         tap((result) => {
           const keep = result.videoId !== null || result.reason === 'no-match';
           if (keep) this.known.set(track.id, result);

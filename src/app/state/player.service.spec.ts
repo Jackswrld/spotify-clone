@@ -477,16 +477,33 @@ describe('PlayerService', () => {
       const p = setup();
       p.playTracks([C[0], C[1]], 0);
       yt.emit({ type: 'error', kind: 'quota' });
-      expect(p.error()).toBe("YouTube's daily search limit is used up; try again tomorrow.");
+      expect(p.error()).toBe("YouTube's daily search limit is used up. Songs you've played before still work; new ones will tomorrow.");
       expect(p.current()?.id).toBe('apple:c1');
       expect(p.isPlaying()).toBeFalse();
     });
 
-    it('offline stops with the server message', () => {
+    it('offline stops with the connection message', () => {
       const p = setup();
       p.playTracks([C[0], C[1]], 0);
       yt.emit({ type: 'error', kind: 'offline' });
-      expect(p.error()).toBe("Can't reach the music server.");
+      expect(p.error()).toBe("Can't reach the music server. Check your internet connection.");
+      expect(p.current()?.id).toBe('apple:c1');
+    });
+
+    it('too many requests stops and asks to wait a minute', () => {
+      const p = setup();
+      p.playTracks([C[0], C[1]], 0);
+      yt.emit({ type: 'error', kind: 'busy' });
+      expect(p.error()).toBe('Too many songs requested at once. Wait a minute, then press play.');
+      expect(p.current()?.id).toBe('apple:c1');
+      expect(p.isPlaying()).toBeFalse();
+    });
+
+    it('a server problem stops with its own message, not the offline one', () => {
+      const p = setup();
+      p.playTracks([C[0], C[1]], 0);
+      yt.emit({ type: 'error', kind: 'server' });
+      expect(p.error()).toBe('The music server had a problem finding this song. Try again in a moment.');
       expect(p.current()?.id).toBe('apple:c1');
     });
 

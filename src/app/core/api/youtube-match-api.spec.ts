@@ -40,14 +40,17 @@ describe('YouTubeMatchApi', () => {
     req.flush({ videoId: null, reason: 'no-match' });
   });
 
-  it('maps network failure and server errors to reason offline', () => {
+  it('tells apart no connection (offline), too many requests (busy) and a server problem (server)', () => {
     let out: MatchResult | undefined;
     api.match(song).subscribe((r) => (out = r));
     http.expectOne((r) => r.url === '/api/youtube/match').error(new ProgressEvent('error'), { status: 0 });
     expect(out).toEqual({ videoId: null, reason: 'offline' });
     api.match(song).subscribe((r) => (out = r));
+    http.expectOne((r) => r.url === '/api/youtube/match').flush({}, { status: 429, statusText: 'Too Many Requests' });
+    expect(out).toEqual({ videoId: null, reason: 'busy' });
+    api.match(song).subscribe((r) => (out = r));
     http.expectOne((r) => r.url === '/api/youtube/match').flush({}, { status: 502, statusText: 'Bad Gateway' });
-    expect(out).toEqual({ videoId: null, reason: 'offline' });
+    expect(out).toEqual({ videoId: null, reason: 'server' });
   });
 
   it('caches matches and no-match per track for the session, but not quota or offline', () => {
